@@ -108,22 +108,44 @@ const SUBJECT_DEFS = [
   },
 ];
 
-// ── Storage (localStorage fallback since window.storage may not exist) ──
-const storage = {
-  get: async (key) => {
-    try {
-      if (window.storage) return await window.storage.get(key);
-      const v = localStorage.getItem(key);
-      return v ? { value: v } : null;
-    } catch { return null; }
-  },
-  set: async (key, val) => {
-    try {
-      if (window.storage) return await window.storage.set(key, val);
-      localStorage.setItem(key, val);
-    } catch {}
+// ── Storage: robust localStorage with optional Claude artifact API ──
+const STORAGE_KEY = "cafinal_v3";
+
+function saveData(data) {
+  const json = JSON.stringify(data);
+  try {
+    localStorage.setItem(STORAGE_KEY, json);
+  } catch(e) {
+    console.warn("localStorage save failed:", e);
   }
-};
+  // Also push to Claude artifact storage if available
+  try {
+    if (window.storage && typeof window.storage.set === "function") {
+      window.storage.set(STORAGE_KEY, json);
+    }
+  } catch(e) {}
+}
+
+async function loadData() {
+  // 1. Try localStorage first (works offline, most reliable)
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) { console.warn("localStorage read failed:", e); }
+  // 2. Fall back to Claude artifact storage
+  try {
+    if (window.storage && typeof window.storage.get === "function") {
+      const r = await window.storage.get(STORAGE_KEY);
+      if (r && r.value) {
+        const parsed = JSON.parse(r.value);
+        // Seed localStorage for next load
+        try { localStorage.setItem(STORAGE_KEY, r.value); } catch {}
+        return parsed;
+      }
+    }
+  } catch(e) {}
+  return null;
+}
 
 function buildInit() {
   const chapterOrder = {}, chapterNames = {};
@@ -184,22 +206,22 @@ function App() {
   const [noteText, setNoteText]       = useState("");
   const [reorderMode, setReorderMode] = useState(false);
 
+  // Load on mount
   useEffect(() => {
-    (async () => {
-      try {
-        const r = await storage.get("cafinal_v3");
-        setSt(r ? JSON.parse(r.value) : buildInit());
-      } catch { setSt(buildInit()); }
-    })();
+    loadData().then(data => setSt(data || buildInit()));
   }, []);
 
-  const persist = useCallback(async s => {
-    try { await storage.set("cafinal_v3", JSON.stringify(s)); } catch {}
-  }, []);
+  // Save on every state change (skip the very first render before load completes)
+  const initialized = React.useRef(false);
+  useEffect(() => {
+    if (!st) return;
+    if (!initialized.current) { initialized.current = true; return; }
+    saveData(st);
+  }, [st]);
 
   const mut = useCallback(fn => {
-    setSt(prev => { const next = fn(prev); persist(next); return next; });
-  }, [persist]);
+    setSt(prev => fn(prev));
+  }, []);
 
   if (!st) return (
     React.createElement('div', {style:{display:"flex",alignItems:"center",justifyContent:"center",
