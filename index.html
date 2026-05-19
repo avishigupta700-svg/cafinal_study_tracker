@@ -25,16 +25,40 @@
   textarea,input,button{font-family:'DM Sans',sans-serif}
   input::placeholder,textarea::placeholder{color:#b5aca0}
 
-  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   @keyframes scaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
+  @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+  @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 
-  .fade-up{animation:fadeUp 0.32s ease both}
+  .fade-up{animation:fadeUp 0.35s ease both}
   .fade-up:nth-child(1){animation-delay:0.04s}
   .fade-up:nth-child(2){animation-delay:0.09s}
   .fade-up:nth-child(3){animation-delay:0.14s}
   .fade-up:nth-child(4){animation-delay:0.19s}
   .fade-up:nth-child(5){animation-delay:0.24s}
   .fade-up:nth-child(6){animation-delay:0.29s}
+
+  .auth-input{
+    width:100%;
+    background:#faf8f5;
+    border:1.5px solid #d4cdc5;
+    border-radius:11px;
+    padding:11px 14px;
+    font-size:0.88rem;
+    outline:none;
+    color:#1c1917;
+    font-family:'DM Sans',sans-serif;
+    transition:border-color 0.18s, box-shadow 0.18s;
+  }
+  .auth-input:focus{
+    border-color:#b45309;
+    box-shadow:0 0 0 3px rgba(180,83,9,0.10);
+  }
+  .auth-input.error{
+    border-color:#dc2626;
+    box-shadow:0 0 0 3px rgba(220,38,38,0.08);
+  }
 
   .subj-card{
     background:#fff;
@@ -70,6 +94,27 @@
     padding:20px;z-index:50;
     animation:scaleIn 0.18s ease;
   }
+
+  .tab-btn{
+    flex:1;padding:9px;font-size:0.8rem;font-weight:600;
+    border:none;cursor:pointer;
+    font-family:'DM Sans',sans-serif;
+    transition:all 0.2s ease;
+  }
+  .tab-btn.active{
+    background:#1c1917;color:#fafaf9;
+  }
+  .tab-btn.inactive{
+    background:#f5f5f4;color:#78716c;
+  }
+  .spinner{
+    width:18px;height:18px;
+    border:2.5px solid rgba(255,255,255,0.3);
+    border-top-color:#fff;
+    border-radius:50%;
+    animation:spin 0.7s linear infinite;
+    display:inline-block;
+  }
 </style>
 </head>
 <body>
@@ -80,7 +125,6 @@ const EXAM_DATE = new Date("2026-11-01");
 const getDays = () => Math.max(0, Math.ceil((EXAM_DATE - new Date()) / 86400000));
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-// Per-subject colors tuned for a light/white background
 const SUBJECT_DEFS = [
   { id:"fr",   name:"Financial Reporting",                      short:"FR",   color:"#2563EB", light:"#eff6ff", text:"#1d4ed8",
     chapters:["Conceptual Framework & Ind AS Overview","Ind AS 1 – Presentation of Financial Statements","Ind AS 2 – Inventories","Ind AS 7 – Statement of Cash Flows","Ind AS 8 – Accounting Policies, Changes & Errors","Ind AS 10 – Events after Reporting Period","Ind AS 12 – Income Taxes","Ind AS 16 – Property, Plant & Equipment","Ind AS 19 – Employee Benefits","Ind AS 20 – Government Grants","Ind AS 21 – Effects of Foreign Exchange Rates","Ind AS 23 – Borrowing Costs","Ind AS 24 – Related Party Disclosures","Ind AS 32 – Financial Instruments: Presentation","Ind AS 33 – Earnings Per Share","Ind AS 36 – Impairment of Assets","Ind AS 37 – Provisions & Contingent Liabilities","Ind AS 38 – Intangible Assets","Ind AS 40 – Investment Property","Ind AS 103 – Business Combinations","Ind AS 105 – Non-current Assets Held for Sale","Ind AS 108 – Operating Segments","Ind AS 109 – Financial Instruments","Ind AS 110 – Consolidated Financial Statements","Ind AS 111 – Joint Arrangements","Ind AS 113 – Fair Value Measurement","Ind AS 115 – Revenue from Contracts with Customers","Ind AS 116 – Leases","Ind AS 101 – First-time Adoption of Ind AS"]},
@@ -99,49 +143,72 @@ const SUBJECT_DEFS = [
     ]},
 ];
 
-// ── Persistent storage ──
-const STORAGE_KEY = "cafinal_v3";
-const NAME_KEY = "cafinal_studentName";
+// ──────────────────────────────────────────────────────────
+// STORAGE LAYER — shared (cross-device) + local (session)
+// ──────────────────────────────────────────────────────────
 
-function saveName(name) {
-  try { localStorage.setItem(NAME_KEY, name); } catch(e) {}
-  try { if (window.storage?.set) window.storage.set(NAME_KEY, name); } catch(e) {}
-}
-async function loadName() {
-  try { const r = localStorage.getItem(NAME_KEY); if (r) return r; } catch(e) {}
+async function sharedGet(key) {
+  // Try artifact storage first (cross-device)
   try {
-    if (window.storage?.get) {
-      const r = await window.storage.get(NAME_KEY);
-      if (r?.value) { try { localStorage.setItem(NAME_KEY, r.value); } catch {} return r.value; }
+    if (window.storage && typeof window.storage.get === 'function') {
+      const r = await window.storage.get(key, true);
+      if (r && r.value) return JSON.parse(r.value);
     }
   } catch(e) {}
-  return "";
-}
-function saveData(data) {
-  const json = JSON.stringify(data);
-  try { localStorage.setItem(STORAGE_KEY, json); } catch(e) { console.warn("save failed:", e); }
-  try { if (window.storage?.set) window.storage.set(STORAGE_KEY, json); } catch(e) {}
-}
-async function loadData() {
-  try { const r = localStorage.getItem(STORAGE_KEY); if (r) return JSON.parse(r); } catch(e) {}
+  // Fallback: localStorage (device-local)
   try {
-    if (window.storage?.get) {
-      const r = await window.storage.get(STORAGE_KEY);
-      if (r?.value) { try { localStorage.setItem(STORAGE_KEY, r.value); } catch {} return JSON.parse(r.value); }
-    }
+    const r = localStorage.getItem('sd_' + key);
+    if (r) return JSON.parse(r);
   } catch(e) {}
   return null;
+}
+
+async function sharedSet(key, value) {
+  const json = JSON.stringify(value);
+  try {
+    if (window.storage && typeof window.storage.set === 'function') {
+      await window.storage.set(key, json, true);
+    }
+  } catch(e) {}
+  try { localStorage.setItem('sd_' + key, json); } catch(e) {}
+}
+
+function sessionGet() {
+  try { const r = localStorage.getItem('cafinal_sess'); return r ? JSON.parse(r) : null; } catch(e) { return null; }
+}
+function sessionSet(data) {
+  try { localStorage.setItem('cafinal_sess', JSON.stringify(data)); } catch(e) {}
+}
+function sessionClear() {
+  try { localStorage.removeItem('cafinal_sess'); } catch(e) {}
+}
+
+// ── Password hashing (SHA-256 via WebCrypto) ──
+async function hashPassword(password) {
+  const enc = new TextEncoder();
+  const data = enc.encode(password + "cafinal_nov26_salt_avishi");
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
 function buildInit() {
   const chapterOrder={}, chapterNames={};
   for (const s of SUBJECT_DEFS) {
-    if (s.sets) { for (const set of s.sets) { const k=`${s.id}_${set.id}`; chapterOrder[k]=set.chapters.map(ch=>{const id=uid();chapterNames[id]=ch;return id;}); } }
-    else { chapterOrder[s.id]=s.chapters.map(ch=>{const id=uid();chapterNames[id]=ch;return id;}); }
+    if (s.sets) {
+      for (const set of s.sets) {
+        const k=`${s.id}_${set.id}`;
+        chapterOrder[k]=set.chapters.map(ch=>{const id=uid();chapterNames[id]=ch;return id;});
+      }
+    } else {
+      chapterOrder[s.id]=s.chapters.map(ch=>{const id=uid();chapterNames[id]=ch;return id;});
+    }
   }
   return {topicData:{},chapterOrder,chapterNames};
 }
 
+// ──────────────────────────────────────────────────────────
+// CONSTANTS & HELPERS
+// ──────────────────────────────────────────────────────────
 const STATUS_SEQ=["pending","inprogress","done"];
 const PRI_SEQ=["high","medium","low"];
 const SS={
@@ -162,9 +229,13 @@ const RTOGGLE=[
 
 const {useState,useEffect,useCallback,useRef}=React;
 
+// ──────────────────────────────────────────────────────────
+// UI PRIMITIVES
+// ──────────────────────────────────────────────────────────
 const ProgBar=({pct,color,h=5})=>(
   <div style={{background:"#ede9e3",borderRadius:99,height:h,overflow:"hidden"}}>
-    <div style={{height:"100%",width:`${pct}%`,background:color,transition:"width 0.5s cubic-bezier(.4,0,.2,1)",borderRadius:99}}/>
+    <div style={{height:"100%",width:`${pct}%`,background:color,
+      transition:"width 0.5s cubic-bezier(.4,0,.2,1)",borderRadius:99}}/>
   </div>
 );
 
@@ -175,163 +246,416 @@ const Ring=({pct,color,track="#e7e5e4",size=56})=>{
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={track} strokeWidth={4}/>
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={4}
         strokeDasharray={`${d} ${c-d}`} strokeLinecap="round"
-        transform={`rotate(-90 ${size/2} ${size/2})`} style={{transition:"stroke-dasharray 0.5s cubic-bezier(.4,0,.2,1)"}}/>
+        transform={`rotate(-90 ${size/2} ${size/2})`}
+        style={{transition:"stroke-dasharray 0.5s cubic-bezier(.4,0,.2,1)"}}/>
       <text x={size/2} y={size/2+0.5} textAnchor="middle" dominantBaseline="middle"
-        fill={color} fontSize={size<48?8:10} fontWeight={700} fontFamily="DM Sans,sans-serif">{pct}%</text>
+        fill={color} fontSize={size<48?8:10} fontWeight={700}
+        fontFamily="DM Sans,sans-serif">{pct}%</text>
     </svg>
   );
 };
 
-function App() {
-  const [view,setView]=useState("dashboard");
-  const [st,setSt]=useState(null);
-  const [studentName,setStudentName]=useState("");
-  const [nameLoaded,setNameLoaded]=useState(false);
-  const [nameInput,setNameInput]=useState("");
-  const [editingName,setEditingName]=useState(false);
-  const [filterStatus,setFilter]=useState("all");
-  const [addInputs,setAddInputs]=useState({});
-  const [noteModal,setNoteModal]=useState(null);
-  const [noteText,setNoteText]=useState("");
-  const [reorderMode,setReorderMode]=useState(false);
+// ──────────────────────────────────────────────────────────
+// AUTH SCREEN
+// ──────────────────────────────────────────────────────────
+function AuthScreen({ onLogin }) {
+  const [tab, setTab] = useState("login"); // "login" | "register"
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [success, setSuccess] = useState("");
 
-  useEffect(()=>{
-    loadData().then(d=>setSt(d||buildInit()));
-    loadName().then(n=>{ setStudentName(n); setNameLoaded(true); });
-  },[]);
+  const clean = s => s.toLowerCase().replace(/[^a-z0-9_]/g,"").slice(0,20);
+  const validUn = u => /^[a-z0-9_]{3,20}$/.test(u);
 
-  const inited=useRef(false);
-  useEffect(()=>{
-    if(!st) return;
-    if(!inited.current){inited.current=true;return;}
-    saveData(st);
-  },[st]);
+  const resetForm = () => { setError(""); setSuccess(""); setPassword(""); setConfirmPwd(""); };
 
-  const mut=useCallback(fn=>setSt(prev=>fn(prev)),[]);
-
-  if(!st||!nameLoaded) return(
-    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",
-      background:"#f7f4ef",color:"#a09890",fontSize:"0.88rem"}}>Loading…</div>
-  );
-
-  // ── ONBOARDING ── show name entry if no name saved yet
-  const submitName=()=>{
-    const n=nameInput.trim(); if(!n) return;
-    setStudentName(n); saveName(n); setNameInput("");
+  const handleLogin = async () => {
+    const u = username.trim();
+    if (!u || !password) { setError("Please fill in all fields."); return; }
+    setLoading(true); setError("");
+    try {
+      const user = await sharedGet(`user:${u}`);
+      if (!user) { setError("No account found with that username. Please register first."); setLoading(false); return; }
+      const hash = await hashPassword(password);
+      if (hash !== user.passwordHash) { setError("Incorrect password. Please try again."); setLoading(false); return; }
+      onLogin({ username: u, name: user.name });
+    } catch(e) {
+      setError("Something went wrong. Please try again.");
+    }
+    setLoading(false);
   };
-  if(!studentName) return(
-    <div style={{minHeight:"100vh",background:"#f7f4ef",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
-      <div style={{background:"#fff",borderRadius:22,padding:"32px 28px",maxWidth:400,width:"100%",
-        border:"1.5px solid #ede9e3",boxShadow:"0 20px 60px rgba(0,0,0,0.10)",textAlign:"center"}}>
-        <div style={{fontSize:"2.2rem",marginBottom:12}}>📚</div>
-        <div style={{fontFamily:"'Playfair Display',serif",fontSize:"1.4rem",fontWeight:700,
-          color:"#1c1917",marginBottom:6}}>CA Final Study Tracker</div>
-        <div style={{fontSize:"0.72rem",color:"#a09890",marginBottom:4
-          }}>for Nov'26 Students</div>
-        <div style={{fontSize:"0.7rem",color:"#b45309",fontWeight:600,marginBottom:28
-          }}>Prepared by CA Avishi Gupta</div>
-        <div style={{fontFamily:"'Playfair Display',serif",fontSize:"1rem",fontWeight:600,
-          color:"#1c1917",marginBottom:4}}>Welcome! What's your name?</div>
-        <div style={{fontSize:"0.74rem",color:"#a09890",marginBottom:18,lineHeight:1.5}}>
-          Enter your name and we'll personalise<br/>your study tracker experience.
+
+  const handleRegister = async () => {
+    const u = username.trim();
+    const nm = displayName.trim();
+    if (!validUn(u)) { setError("Username: 3–20 chars, only letters / numbers / underscore."); return; }
+    if (!nm) { setError("Please enter your display name."); return; }
+    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    if (password !== confirmPwd) { setError("Passwords do not match."); return; }
+    setLoading(true); setError("");
+    try {
+      const existing = await sharedGet(`user:${u}`);
+      if (existing) { setError("That username is already taken. Please choose another."); setLoading(false); return; }
+      const hash = await hashPassword(password);
+      await sharedSet(`user:${u}`, { name: nm, passwordHash: hash, createdAt: Date.now() });
+      setSuccess("Account created! Logging you in…");
+      setTimeout(() => onLogin({ username: u, name: nm }), 800);
+    } catch(e) {
+      setError("Something went wrong. Please try again.");
+    }
+    setLoading(false);
+  };
+
+  const handleKey = e => { if(e.key==="Enter" && !loading) { tab==="login"?handleLogin():handleRegister(); } };
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f7f4ef",display:"flex",
+      flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+
+      {/* Card */}
+      <div style={{background:"#fff",borderRadius:24,padding:"28px 24px 32px",
+        maxWidth:400,width:"100%",border:"1.5px solid #ede9e3",
+        boxShadow:"0 24px 72px rgba(0,0,0,0.10)",animation:"fadeUp 0.35s ease both"}}>
+
+        {/* Header */}
+        <div style={{textAlign:"center",marginBottom:24}}>
+          <div style={{fontSize:"2.4rem",marginBottom:10,lineHeight:1}}>📚</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:"1.35rem",fontWeight:700,
+            color:"#1c1917",letterSpacing:"-0.3px",lineHeight:1.2,marginBottom:4}}>
+            CA Final Study Tracker
+          </div>
+          <div style={{fontSize:"0.71rem",color:"#a09890",marginBottom:3}}>for Nov'26 Students</div>
+          <div style={{fontSize:"0.69rem",color:"#b45309",fontWeight:600}}>Prepared by CA Avishi Gupta</div>
         </div>
-        <input value={nameInput} onChange={e=>setNameInput(e.target.value)}
-          onKeyDown={e=>e.key==="Enter"&&submitName()}
-          placeholder="e.g. Priya Sharma"
-          autoFocus
-          style={{width:"100%",background:"#faf8f5",border:"1.5px solid #d4cdc5",
-            borderRadius:11,padding:"11px 14px",fontSize:"0.9rem",outline:"none",
-            color:"#1c1917",textAlign:"center",marginBottom:12,
-            fontFamily:"'DM Sans',sans-serif",letterSpacing:"0.01em"}}/>
-        <button onClick={submitName} disabled={!nameInput.trim()}
-          style={{width:"100%",background:nameInput.trim()?"#1c1917":"#e7e5e4",
-            color:nameInput.trim()?"#fff":"#a09890",border:"none",borderRadius:11,
-            padding:"12px",fontSize:"0.88rem",cursor:nameInput.trim()?"pointer":"default",
-            fontWeight:700,fontFamily:"'DM Sans',sans-serif",
-            transition:"all 0.18s ease"}}>
-          Let's get started →
+
+        {/* Tabs */}
+        <div style={{display:"flex",borderRadius:12,overflow:"hidden",
+          border:"1.5px solid #e7e5e4",marginBottom:22}}>
+          {[["login","Login"],["register","Create Account"]].map(([t,l])=>(
+            <button key={t} className={`tab-btn ${tab===t?"active":"inactive"}`}
+              onClick={()=>{setTab(t);resetForm();}}>
+              {l}
+            </button>
+          ))}
+        </div>
+
+        {/* Cross-device notice */}
+        <div style={{background:"#faf8f5",border:"1px solid #ede9e3",borderRadius:10,
+          padding:"8px 12px",marginBottom:18,display:"flex",gap:8,alignItems:"flex-start"}}>
+          <span style={{fontSize:"0.85rem",flexShrink:0}}>🔒</span>
+          <div style={{fontSize:"0.66rem",color:"#78716c",lineHeight:1.5}}>
+            Your progress syncs across all devices when you log in with the same credentials.
+          </div>
+        </div>
+
+        {/* Fields */}
+        <div style={{display:"flex",flexDirection:"column",gap:11}}>
+
+          {/* Username */}
+          <div>
+            <label style={{fontSize:"0.72rem",fontWeight:600,color:"#57534e",
+              display:"block",marginBottom:5}}>Username</label>
+            <input className="auth-input" value={username}
+              onChange={e=>setUsername(clean(e.target.value))}
+              onKeyDown={handleKey}
+              placeholder="e.g. priya_sharma"
+              autoCapitalize="none" autoCorrect="off" autoComplete="username"
+              style={{letterSpacing:"0.01em"}}/>
+            {tab==="register"&&<div style={{fontSize:"0.63rem",color:"#a09890",marginTop:4,paddingLeft:2}}>
+              3–20 chars · letters, numbers, underscore only
+            </div>}
+          </div>
+
+          {/* Display name (register only) */}
+          {tab==="register"&&(
+            <div>
+              <label style={{fontSize:"0.72rem",fontWeight:600,color:"#57534e",
+                display:"block",marginBottom:5}}>Your Name</label>
+              <input className="auth-input" value={displayName}
+                onChange={e=>setDisplayName(e.target.value)}
+                onKeyDown={handleKey}
+                placeholder="e.g. Priya Sharma"
+                autoComplete="name"/>
+            </div>
+          )}
+
+          {/* Password */}
+          <div>
+            <label style={{fontSize:"0.72rem",fontWeight:600,color:"#57534e",
+              display:"block",marginBottom:5}}>Password</label>
+            <div style={{position:"relative"}}>
+              <input className="auth-input" type={showPwd?"text":"password"}
+                value={password} onChange={e=>setPassword(e.target.value)}
+                onKeyDown={handleKey}
+                placeholder={tab==="register"?"Min. 6 characters":"Enter your password"}
+                autoComplete={tab==="register"?"new-password":"current-password"}
+                style={{paddingRight:44}}/>
+              <button onClick={()=>setShowPwd(s=>!s)}
+                style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",
+                  background:"none",border:"none",cursor:"pointer",
+                  fontSize:"0.8rem",color:"#a09890",padding:4}}>
+                {showPwd?"🙈":"👁️"}
+              </button>
+            </div>
+          </div>
+
+          {/* Confirm password (register only) */}
+          {tab==="register"&&(
+            <div>
+              <label style={{fontSize:"0.72rem",fontWeight:600,color:"#57534e",
+                display:"block",marginBottom:5}}>Confirm Password</label>
+              <input className="auth-input" type={showPwd?"text":"password"}
+                value={confirmPwd} onChange={e=>setConfirmPwd(e.target.value)}
+                onKeyDown={handleKey}
+                placeholder="Re-enter password"
+                autoComplete="new-password"/>
+            </div>
+          )}
+        </div>
+
+        {/* Error message */}
+        {error&&(
+          <div style={{marginTop:14,background:"#fef2f2",border:"1px solid #fecaca",
+            borderRadius:9,padding:"9px 12px",fontSize:"0.73rem",color:"#b91c1c",
+            lineHeight:1.5,display:"flex",gap:7,alignItems:"flex-start"}}>
+            <span style={{flexShrink:0}}>⚠️</span>{error}
+          </div>
+        )}
+
+        {/* Success message */}
+        {success&&(
+          <div style={{marginTop:14,background:"#ecfdf5",border:"1px solid #a7f3d0",
+            borderRadius:9,padding:"9px 12px",fontSize:"0.73rem",color:"#047857",
+            lineHeight:1.5,display:"flex",gap:7,alignItems:"center"}}>
+            <span>✅</span>{success}
+          </div>
+        )}
+
+        {/* Submit button */}
+        <button onClick={tab==="login"?handleLogin:handleRegister}
+          disabled={loading}
+          style={{width:"100%",marginTop:18,
+            background:loading?"#d6d3d1":"#1c1917",
+            color:"#fff",border:"none",borderRadius:12,padding:"13px",
+            fontSize:"0.88rem",cursor:loading?"default":"pointer",
+            fontWeight:700,transition:"all 0.18s ease",
+            display:"flex",alignItems:"center",justifyContent:"center",gap:10,
+            boxShadow:loading?"none":"0 4px 16px rgba(28,25,23,0.18)"}}>
+          {loading
+            ? <><div className="spinner"/><span>Please wait…</span></>
+            : tab==="login" ? "Login →" : "Create Account →"
+          }
         </button>
+
+        {/* Switch tab link */}
+        <div style={{textAlign:"center",marginTop:16,fontSize:"0.73rem",color:"#a09890"}}>
+          {tab==="login"
+            ? <>Don't have an account?{" "}
+                <button onClick={()=>{setTab("register");resetForm();}}
+                  style={{background:"none",border:"none",color:"#b45309",
+                    fontWeight:600,cursor:"pointer",fontSize:"0.73rem",
+                    textDecoration:"underline"}}>Register here</button></>
+            : <>Already have an account?{" "}
+                <button onClick={()=>{setTab("login");resetForm();}}
+                  style={{background:"none",border:"none",color:"#b45309",
+                    fontWeight:600,cursor:"pointer",fontSize:"0.73rem",
+                    textDecoration:"underline"}}>Login here</button></>
+          }
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{marginTop:20,fontSize:"0.65rem",color:"#b5aca0",textAlign:"center",lineHeight:1.6}}>
+        CA Final Nov '26 · Prepared by CA Avishi Gupta<br/>
+        Your data is saved securely and syncs across devices.
       </div>
     </div>
   );
+}
+
+// ──────────────────────────────────────────────────────────
+// MAIN TRACKER APP
+// ──────────────────────────────────────────────────────────
+function TrackerApp({ user, onLogout }) {
+  const [view, setView] = useState("dashboard");
+  const [st, setSt] = useState(null);
+  const [nameInput, setNameInput] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [filterStatus, setFilter] = useState("all");
+  const [addInputs, setAddInputs] = useState({});
+  const [noteModal, setNoteModal] = useState(null);
+  const [noteText, setNoteText] = useState("");
+  const [reorderMode, setReorderMode] = useState(false);
+  const [logoutConfirm, setLogoutConfirm] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const TRACKER_KEY = `tracker:${user.username}`;
+
+  useEffect(() => {
+    sharedGet(TRACKER_KEY).then(d => setSt(d || buildInit()));
+  }, []);
+
+  const inited = useRef(false);
+  useEffect(() => {
+    if (!st) return;
+    if (!inited.current) { inited.current = true; return; }
+    setSaving(true);
+    sharedSet(TRACKER_KEY, st).then(() => {
+      setTimeout(() => setSaving(false), 600);
+    });
+  }, [st]);
+
+  const mut = useCallback(fn => setSt(prev => fn(prev)), []);
+
+  if (!st) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",
+      height:"100vh",background:"#f7f4ef",flexDirection:"column",gap:12}}>
+      <div className="spinner" style={{borderTopColor:"#b45309",border:"3px solid #ede9e3",
+        borderTopColor:"#b45309",width:32,height:32}}/>
+      <div style={{color:"#a09890",fontSize:"0.82rem"}}>Loading your tracker…</div>
+    </div>
+  );
+
+  const getTopic = id => st.topicData[id] || {status:"pending",priority:"medium",note:""};
+  const setTopic = (id, patch) => mut(p => ({...p, topicData:{...p.topicData,[id]:{...getTopic(id),...patch}}}));
+  const getOrder = sKey => st.chapterOrder[sKey] || [];
+
+  const addChapter = sKey => {
+    const name = (addInputs[sKey]||"").trim(); if (!name) return;
+    const id = uid();
+    mut(p => ({...p,
+      chapterOrder:{...p.chapterOrder,[sKey]:[...getOrder(sKey),id]},
+      chapterNames:{...p.chapterNames,[id]:name}}));
+    setAddInputs(a => ({...a,[sKey]:""}));
+  };
+
+  const moveChapter = (sKey, idx, dir) => {
+    const order=[...getOrder(sKey)], ni=idx+dir;
+    if (ni<0||ni>=order.length) return;
+    [order[idx],order[ni]]=[order[ni],order[idx]];
+    mut(p => ({...p, chapterOrder:{...p.chapterOrder,[sKey]:order}}));
+  };
+
+  const delChapter = (sKey, id) =>
+    mut(p => ({...p, chapterOrder:{...p.chapterOrder,[sKey]:p.chapterOrder[sKey].filter(x=>x!==id)}}));
+
+  const getProgress = ids => {
+    const done = ids.filter(id=>getTopic(id).status==="done").length;
+    const inp  = ids.filter(id=>getTopic(id).status==="inprogress").length;
+    return {done,inp,total:ids.length,pct:ids.length?Math.round(done/ids.length*100):0};
+  };
+
+  const allIds = SUBJECT_DEFS.flatMap(s =>
+    s.sets ? s.sets.flatMap(set=>getOrder(`${s.id}_${set.id}`)) : getOrder(s.id));
+  const overall = getProgress(allIds);
+  const subject = SUBJECT_DEFS.find(s=>s.id===view);
 
   // ── EDIT NAME MODAL ──
-  const EditNameModal=()=>(
+  const EditNameModal = () => (
     <div className="modal-bg">
       <div style={{background:"#fff",borderRadius:18,padding:22,width:"100%",maxWidth:360,
         border:"1.5px solid #ede9e3",boxShadow:"0 24px 60px rgba(0,0,0,0.12)",textAlign:"center"}}>
         <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:"1rem",
-          color:"#1c1917",marginBottom:14}}>Update your name</div>
+          color:"#1c1917",marginBottom:14}}>Update your display name</div>
         <input value={nameInput} onChange={e=>setNameInput(e.target.value)}
-          onKeyDown={e=>{if(e.key==="Enter"&&nameInput.trim()){setStudentName(nameInput.trim());saveName(nameInput.trim());setEditingName(false);setNameInput("");}}}
-          placeholder="Your name"
-          autoFocus
-          style={{width:"100%",background:"#faf8f5",border:"1.5px solid #d4cdc5",
-            borderRadius:10,padding:"10px 13px",fontSize:"0.88rem",outline:"none",
-            color:"#1c1917",textAlign:"center",marginBottom:12,
-            fontFamily:"'DM Sans',sans-serif"}}/>
+          onKeyDown={e=>{
+            if(e.key==="Enter"&&nameInput.trim()){
+              sharedSet(`user:${user.username}`,{...{name:nameInput.trim()}});
+              user.name=nameInput.trim(); // mutate for display
+              sessionSet({...user,name:nameInput.trim()});
+              setEditingName(false); setNameInput("");
+              setSt(s=>({...s})); // force re-render
+            }
+          }}
+          placeholder="Your name" autoFocus
+          className="auth-input"
+          style={{textAlign:"center",marginBottom:12}}/>
         <div style={{display:"flex",gap:8}}>
-          <button onClick={()=>{if(!nameInput.trim()) return; setStudentName(nameInput.trim()); saveName(nameInput.trim()); setEditingName(false); setNameInput("");}}
+          <button onClick={()=>{
+            if(!nameInput.trim()) return;
+            sharedSet(`user:${user.username}`,{name:nameInput.trim(),passwordHash:undefined});
+            sessionSet({...user,name:nameInput.trim()});
+            window.location.reload(); // simplest way to refresh user name
+          }}
             style={{flex:1,background:"#1c1917",color:"#fff",border:"none",borderRadius:10,
-              padding:10,cursor:"pointer",fontWeight:700,fontSize:"0.83rem",fontFamily:"'DM Sans',sans-serif"}}>Save</button>
+              padding:10,cursor:"pointer",fontWeight:700,fontSize:"0.83rem",
+              fontFamily:"'DM Sans',sans-serif"}}>Save</button>
           <button onClick={()=>{setEditingName(false);setNameInput("");}}
             style={{flex:1,background:"#f5f5f4",color:"#57534e",border:"1.5px solid #e7e5e4",
-              borderRadius:10,padding:10,cursor:"pointer",fontSize:"0.83rem",fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
+              borderRadius:10,padding:10,cursor:"pointer",fontSize:"0.83rem",
+              fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
         </div>
       </div>
     </div>
   );
 
-  const getTopic=id=>st.topicData[id]||{status:"pending",priority:"medium",note:""};
-  const setTopic=(id,patch)=>mut(p=>({...p,topicData:{...p.topicData,[id]:{...getTopic(id),...patch}}}));
-  const getOrder=sKey=>st.chapterOrder[sKey]||[];
-
-  const addChapter=sKey=>{
-    const name=(addInputs[sKey]||"").trim(); if(!name) return;
-    const id=uid();
-    mut(p=>({...p,chapterOrder:{...p.chapterOrder,[sKey]:[...getOrder(sKey),id]},chapterNames:{...p.chapterNames,[id]:name}}));
-    setAddInputs(a=>({...a,[sKey]:""}));
-  };
-
-  const moveChapter=(sKey,idx,dir)=>{
-    const order=[...getOrder(sKey)],ni=idx+dir;
-    if(ni<0||ni>=order.length) return;
-    [order[idx],order[ni]]=[order[ni],order[idx]];
-    mut(p=>({...p,chapterOrder:{...p.chapterOrder,[sKey]:order}}));
-  };
-
-  const delChapter=(sKey,id)=>mut(p=>({...p,chapterOrder:{...p.chapterOrder,[sKey]:p.chapterOrder[sKey].filter(x=>x!==id)}}));
-
-  const getProgress=ids=>{
-    const done=ids.filter(id=>getTopic(id).status==="done").length;
-    const inp=ids.filter(id=>getTopic(id).status==="inprogress").length;
-    return{done,inp,total:ids.length,pct:ids.length?Math.round(done/ids.length*100):0};
-  };
-
-  const allIds=SUBJECT_DEFS.flatMap(s=>s.sets?s.sets.flatMap(set=>getOrder(`${s.id}_${set.id}`)):getOrder(s.id));
-  const overall=getProgress(allIds);
-  const subject=SUBJECT_DEFS.find(s=>s.id===view);
+  // ── LOGOUT CONFIRM MODAL ──
+  const LogoutModal = () => (
+    <div className="modal-bg">
+      <div style={{background:"#fff",borderRadius:18,padding:24,width:"100%",maxWidth:340,
+        border:"1.5px solid #ede9e3",boxShadow:"0 24px 60px rgba(0,0,0,0.12)",textAlign:"center"}}>
+        <div style={{fontSize:"1.8rem",marginBottom:10}}>👋</div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:"1rem",
+          color:"#1c1917",marginBottom:6}}>Log out?</div>
+        <div style={{fontSize:"0.74rem",color:"#a09890",marginBottom:20,lineHeight:1.5}}>
+          Your progress is saved and will be here<br/>when you log back in, from any device.
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>{sessionClear();onLogout();}}
+            style={{flex:1,background:"#1c1917",color:"#fff",border:"none",borderRadius:10,
+              padding:11,cursor:"pointer",fontWeight:700,fontSize:"0.85rem",
+              fontFamily:"'DM Sans',sans-serif"}}>Log Out</button>
+          <button onClick={()=>setLogoutConfirm(false)}
+            style={{flex:1,background:"#f5f5f4",color:"#57534e",border:"1.5px solid #e7e5e4",
+              borderRadius:10,padding:11,cursor:"pointer",fontSize:"0.85rem",
+              fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
 
   // ─── DASHBOARD ───────────────────────────────────────────────
-  if(view==="dashboard") return(
+  if (view==="dashboard") return (
     <div style={{minHeight:"100vh",background:"#f7f4ef"}}>
 
       {/* Top bar */}
-      <div style={{background:"#fff",borderBottom:"1.5px solid #ede9e3",padding:"18px 20px 14px",
+      <div style={{background:"#fff",borderBottom:"1.5px solid #ede9e3",padding:"16px 20px 12px",
         boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
           <div>
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:"1.25rem",fontWeight:700,
-              color:"#1c1917",letterSpacing:"-0.3px",lineHeight:1.25}}>CA Final Study Tracker<br/>
-              <span style={{fontSize:"1rem",fontWeight:600,color:"#57534e"}}>for Nov'26 Students</span></div>
-            <div style={{color:"#a09890",fontSize:"0.71rem",marginTop:4,fontWeight:400}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:"1.2rem",fontWeight:700,
+              color:"#1c1917",letterSpacing:"-0.3px",lineHeight:1.25}}>
+              CA Final Study Tracker<br/>
+              <span style={{fontSize:"0.92rem",fontWeight:600,color:"#57534e"}}>for Nov'26 Students</span>
+            </div>
+            <div style={{color:"#a09890",fontSize:"0.67rem",marginTop:3,fontWeight:400}}>
               Prepared by <span style={{color:"#b45309",fontWeight:600}}>CA Avishi Gupta</span>
             </div>
           </div>
-          <button onClick={()=>{setNameInput(studentName);setEditingName(true);}}
-            style={{background:"#f5f5f4",border:"1.5px solid #e7e5e4",borderRadius:8,
-              padding:"5px 10px",fontSize:"0.65rem",color:"#78716c",cursor:"pointer",
-              fontWeight:500,marginTop:2,whiteSpace:"nowrap"}}>✏️ {studentName}</button>
+          <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}>
+            <button onClick={()=>{setNameInput(user.name);setEditingName(true);}}
+              style={{background:"#f5f5f4",border:"1.5px solid #e7e5e4",borderRadius:8,
+                padding:"4px 10px",fontSize:"0.64rem",color:"#78716c",cursor:"pointer",
+                fontWeight:500,whiteSpace:"nowrap"}}>✏️ {user.name}</button>
+            <button onClick={()=>setLogoutConfirm(true)}
+              style={{background:"none",border:"none",color:"#a09890",cursor:"pointer",
+                fontSize:"0.62rem",fontWeight:500,padding:"2px 0"}}>
+              Sign out ↗
+            </button>
+          </div>
+        </div>
+        {/* Sync indicator */}
+        <div style={{marginTop:8,display:"flex",alignItems:"center",gap:5,
+          fontSize:"0.61rem",color:saving?"#b45309":"#10b981"}}>
+          <div style={{width:5,height:5,borderRadius:"50%",
+            background:saving?"#b45309":"#10b981",
+            animation:saving?"pulse 1s ease infinite":"none"}}/>
+          {saving ? "Saving…" : "Synced across devices"}
         </div>
       </div>
 
@@ -343,30 +667,26 @@ function App() {
           position:"relative",overflow:"hidden"}}>
           <div style={{position:"absolute",top:-50,right:-50,width:180,height:180,
             background:"radial-gradient(circle,rgba(255,255,255,0.05) 0%,transparent 70%)",borderRadius:"50%"}}/>
-          {/* Greeting */}
           <div style={{marginBottom:14,paddingBottom:14,borderBottom:"1px solid rgba(255,255,255,0.07)"}}>
             <div style={{fontFamily:"'Playfair Display',serif",fontSize:"1.1rem",fontWeight:700,
               color:"#fafaf9",lineHeight:1.3}}>
-              Hi {studentName},
+              Hi {user.name},
             </div>
-            <div style={{color:"#a8a29e",fontSize:"0.75rem",marginTop:3,lineHeight:1.5}}>
-              Welcome to your Study Tracker. The number of days left for your exams is{" "}
+            <div style={{color:"#a8a29e",fontSize:"0.74rem",marginTop:3,lineHeight:1.5}}>
+              Welcome back to your Study Tracker. Days left for your exams:{" "}
               <span style={{color:"#d4a853",fontWeight:700,fontSize:"0.85rem"}}>{getDays()}</span>.
-              {getDays() > 60
-                ? " You've got plenty of time — stay consistent! 💪"
-                : getDays() > 30
-                ? " The final stretch is here — push hard! 🔥"
-                : " It's crunch time — give it everything! 🚀"}
+              {getDays()>60?" You've got plenty of time — stay consistent! 💪"
+               :getDays()>30?" The final stretch is here — push hard! 🔥"
+               :" It's crunch time — give it everything! 🚀"}
             </div>
           </div>
-          {/* Stats row */}
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
-              <div style={{color:"#78716c",fontSize:"0.58rem",fontWeight:600,letterSpacing:"0.14em",
+              <div style={{color:"#78716c",fontSize:"0.56rem",fontWeight:600,letterSpacing:"0.14em",
                 textTransform:"uppercase",marginBottom:5}}>Days Remaining</div>
               <div style={{fontFamily:"'Playfair Display',serif",fontSize:"3rem",fontWeight:800,
                 lineHeight:1,color:"#fafaf9",letterSpacing:"-2px"}}>{getDays()}</div>
-              <div style={{color:"#57534e",fontSize:"0.66rem",marginTop:5}}>1 November 2026</div>
+              <div style={{color:"#57534e",fontSize:"0.65rem",marginTop:5}}>1 November 2026</div>
             </div>
             <div style={{textAlign:"center"}}>
               <Ring pct={overall.pct} color="#d4a853" track="rgba(255,255,255,0.1)" size={72}/>
@@ -375,7 +695,7 @@ function App() {
           </div>
         </div>
 
-        {/* Overall stats strip */}
+        {/* Overall stats */}
         <div style={{background:"#fff",borderRadius:14,padding:"13px 16px",marginBottom:14,
           border:"1.5px solid #ede9e3",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
@@ -387,20 +707,43 @@ function App() {
             {[["#047857","#ecfdf5","✓ Done",overall.done],
               ["#b45309","#fffbeb","⟳ Active",overall.inp],
               ["#9ca3af","#f9fafb","○ Left",overall.total-overall.done-overall.inp]].map(([c,bg,l,v])=>(
-              <div key={l} style={{flex:1,background:bg,borderRadius:8,padding:"7px 10px",textAlign:"center",border:`1px solid ${c}20`}}>
+              <div key={l} style={{flex:1,background:bg,borderRadius:8,padding:"7px 10px",
+                textAlign:"center",border:`1px solid ${c}20`}}>
                 <div style={{fontFamily:"'Playfair Display',serif",fontSize:"1.05rem",fontWeight:700,color:c}}>{v}</div>
-                <div style={{fontSize:"0.59rem",color:c,opacity:0.75,marginTop:1}}>{l}</div>
+                <div style={{fontSize:"0.58rem",color:c,opacity:0.75,marginTop:1}}>{l}</div>
               </div>
             ))}
           </div>
         </div>
 
+        {/* User info strip */}
+        <div style={{background:"#fff",borderRadius:12,padding:"10px 14px",marginBottom:14,
+          border:"1.5px solid #ede9e3",display:"flex",alignItems:"center",gap:10,
+          boxShadow:"0 1px 3px rgba(0,0,0,0.03)"}}>
+          <div style={{width:34,height:34,borderRadius:"50%",background:"#1c1917",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontFamily:"'Playfair Display',serif",fontSize:"0.95rem",
+            fontWeight:700,color:"#fafaf9",flexShrink:0}}>
+            {user.name.charAt(0).toUpperCase()}
+          </div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:"0.78rem",fontWeight:600,color:"#1c1917",
+              overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.name}</div>
+            <div style={{fontSize:"0.63rem",color:"#a09890"}}>@{user.username} · Nov '26 Candidate</div>
+          </div>
+          <div style={{fontSize:"0.63rem",color:"#10b981",fontWeight:500,
+            background:"#ecfdf5",borderRadius:20,padding:"3px 9px",
+            border:"1px solid #a7f3d0",flexShrink:0}}>● Synced</div>
+        </div>
+
         {/* Subject cards */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           {SUBJECT_DEFS.map(s=>{
-            const ids=s.sets?s.sets.flatMap(set=>getOrder(`${s.id}_${set.id}`)):getOrder(s.id);
-            const p=getProgress(ids);
-            return(
+            const ids = s.sets
+              ? s.sets.flatMap(set=>getOrder(`${s.id}_${set.id}`))
+              : getOrder(s.id);
+            const p = getProgress(ids);
+            return (
               <div key={s.id} className="subj-card fade-up"
                 onClick={()=>{setView(s.id);setReorderMode(false);setFilter("all");}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
@@ -421,61 +764,58 @@ function App() {
           })}
         </div>
       </div>
+
       {editingName&&<EditNameModal/>}
+      {logoutConfirm&&<LogoutModal/>}
     </div>
   );
 
   // ─── SUBJECT VIEW ────────────────────────────────────────────
-  const subIds=subject.sets?subject.sets.flatMap(set=>getOrder(`${subject.id}_${set.id}`)):getOrder(subject.id);
-  const sp=getProgress(subIds);
+  const subIds = subject.sets
+    ? subject.sets.flatMap(set=>getOrder(`${subject.id}_${set.id}`))
+    : getOrder(subject.id);
+  const sp = getProgress(subIds);
 
-  const renderRows=(sKey,ids)=>ids.map((id,idx)=>{
-    const state=getTopic(id);
-    if(!reorderMode && filterStatus!=="all" && state.status!==filterStatus) return null;
-    const s=SS[state.status], p=PS[state.priority||"medium"];
-    const isDone=state.status==="done";
-    return(
+  const renderRows = (sKey, ids) => ids.map((id, idx) => {
+    const state = getTopic(id);
+    if (!reorderMode && filterStatus!=="all" && state.status!==filterStatus) return null;
+    const s = SS[state.status], p = PS[state.priority||"medium"];
+    const isDone = state.status==="done";
+    return (
       <div key={id} className="chapter-row"
         style={{borderLeftColor:reorderMode?"#d6d3d1":s.border,opacity:isDone?0.7:1}}>
 
-        {/* Reorder arrows */}
         {reorderMode&&(
           <div style={{display:"flex",flexDirection:"column",gap:3,flexShrink:0,paddingTop:1}}>
             {[[-1,"▲"],[1,"▼"]].map(([d,ic])=>{
-              const dis=d===-1?idx===0:idx===ids.length-1;
-              return<button key={d} onClick={()=>moveChapter(sKey,idx,d)} disabled={dis}
-                style={{background:dis?"#f5f5f4":"#ede9e3",color:dis?"#d6d3d1":"#78716c",border:"none",
-                  borderRadius:5,width:24,height:24,cursor:dis?"default":"pointer",
+              const dis = d===-1?idx===0:idx===ids.length-1;
+              return <button key={d} onClick={()=>moveChapter(sKey,idx,d)} disabled={dis}
+                style={{background:dis?"#f5f5f4":"#ede9e3",color:dis?"#d6d3d1":"#78716c",
+                  border:"none",borderRadius:5,width:24,height:24,cursor:dis?"default":"pointer",
                   fontSize:"0.58rem",display:"flex",alignItems:"center",justifyContent:"center"}}>{ic}</button>;
             })}
           </div>
         )}
 
         <div style={{flex:1,minWidth:0}}>
-          {/* Chapter title */}
           <div style={{fontSize:"0.82rem",lineHeight:1.45,fontWeight:isDone?400:500,
             color:isDone?"#a09890":"#1c1917",textDecoration:isDone?"line-through":"none",
             marginBottom:reorderMode?0:8}}>
             {st.chapterNames[id]||"(Untitled)"}
           </div>
 
-          {/* Controls */}
           {!reorderMode&&(
             <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
-
-              {/* Status pill */}
               <button onClick={()=>setTopic(id,{status:STATUS_SEQ[(STATUS_SEQ.indexOf(state.status)+1)%3]})}
                 style={{background:s.bg,color:s.c,border:`1px solid ${s.border}`,borderRadius:20,
                   padding:"3px 10px",fontSize:"0.66rem",fontWeight:600,cursor:"pointer",transition:"all 0.15s"}}>
                 {s.l}</button>
 
-              {/* Priority pill */}
               <button onClick={()=>setTopic(id,{priority:PRI_SEQ[(PRI_SEQ.indexOf(state.priority||"medium")+1)%3]})}
                 style={{background:p.bg,color:p.c,border:`1px solid ${p.border}`,borderRadius:20,
                   padding:"3px 10px",fontSize:"0.66rem",fontWeight:600,cursor:"pointer",transition:"all 0.15s"}}>
                 {p.l}</button>
 
-              {/* Note pill */}
               <button onClick={()=>{setNoteModal(id);setNoteText(state.note||"");}}
                 style={{background:state.note?subject.light:"#f5f5f4",
                   color:state.note?subject.text:"#a09890",
@@ -483,12 +823,11 @@ function App() {
                   borderRadius:20,padding:"3px 10px",fontSize:"0.66rem",cursor:"pointer",transition:"all 0.15s"}}>
                 {state.note?"📝 Note":"+ Note"}</button>
 
-              {/* R1 / R2 / R3 toggles */}
               <div style={{display:"flex",gap:4,marginLeft:1}}>
                 {["r1","r2","r3"].map((rk,ri)=>{
-                  const on=!!state[rk];
-                  const t=RTOGGLE[ri];
-                  return(
+                  const on = !!state[rk];
+                  const t = RTOGGLE[ri];
+                  return (
                     <button key={rk} onClick={()=>setTopic(id,{[rk]:!on})}
                       title={`Revision ${ri+1} ${on?"complete":"pending"}`}
                       style={{
@@ -508,7 +847,6 @@ function App() {
             </div>
           )}
 
-          {/* Note preview */}
           {!reorderMode&&state.note&&(
             <div style={{marginTop:7,background:"#faf8f5",border:"1px solid #ede9e3",borderRadius:8,
               padding:"6px 10px",fontSize:"0.71rem",color:"#78716c",lineHeight:1.5}}>
@@ -517,20 +855,22 @@ function App() {
           )}
         </div>
 
-        {/* Delete button */}
         {reorderMode&&(
           <button onClick={()=>delChapter(sKey,id)}
             style={{background:"#fef2f2",color:"#b91c1c",border:"1px solid #fecaca",borderRadius:7,
-              padding:"4px 9px",fontSize:"0.7rem",cursor:"pointer",flexShrink:0,alignSelf:"center",fontWeight:600}}>✕</button>
+              padding:"4px 9px",fontSize:"0.7rem",cursor:"pointer",flexShrink:0,
+              alignSelf:"center",fontWeight:600}}>✕</button>
         )}
       </div>
     );
   });
 
-  const renderAdd=sKey=>(
+  const renderAdd = sKey => (
     <div style={{display:"flex",gap:8,marginTop:6,marginBottom:10}}>
-      <input value={addInputs[sKey]||""} onChange={e=>setAddInputs(a=>({...a,[sKey]:e.target.value}))}
-        onKeyDown={e=>e.key==="Enter"&&addChapter(sKey)} placeholder="Add a topic or chapter…"
+      <input value={addInputs[sKey]||""}
+        onChange={e=>setAddInputs(a=>({...a,[sKey]:e.target.value}))}
+        onKeyDown={e=>e.key==="Enter"&&addChapter(sKey)}
+        placeholder="Add a topic or chapter…"
         style={{flex:1,background:"#faf8f5",border:"1.5px dashed #d4cdc5",borderRadius:10,
           padding:"9px 13px",color:"#1c1917",fontSize:"0.79rem",outline:"none"}}/>
       <button onClick={()=>addChapter(sKey)}
@@ -540,7 +880,7 @@ function App() {
     </div>
   );
 
-  return(
+  return (
     <div style={{minHeight:"100vh",background:"#f7f4ef"}}>
 
       {/* Sticky header */}
@@ -554,20 +894,26 @@ function App() {
           <span style={{background:subject.light,color:subject.text,borderRadius:7,padding:"3px 9px",
             fontSize:"0.65rem",fontWeight:700,border:`1px solid ${subject.color}28`,letterSpacing:"0.04em"}}>
             {subject.short}</span>
-          <button onClick={()=>{setReorderMode(r=>!r);setFilter("all");}}
-            style={{marginLeft:"auto",background:reorderMode?subject.color:"#f5f5f4",
-              color:reorderMode?"#fff":"#57534e",border:reorderMode?"none":"1.5px solid #e7e5e4",
-              borderRadius:8,padding:"5px 14px",fontSize:"0.72rem",cursor:"pointer",fontWeight:600}}>
-            {reorderMode?"✓ Done":"⇅ Reorder"}</button>
+          <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center"}}>
+            {saving&&<span style={{fontSize:"0.6rem",color:"#b45309",
+              animation:"pulse 1s ease infinite"}}>Saving…</span>}
+            <button onClick={()=>{setReorderMode(r=>!r);setFilter("all");}}
+              style={{background:reorderMode?subject.color:"#f5f5f4",
+                color:reorderMode?"#fff":"#57534e",
+                border:reorderMode?"none":"1.5px solid #e7e5e4",
+                borderRadius:8,padding:"5px 14px",fontSize:"0.72rem",cursor:"pointer",fontWeight:600}}>
+              {reorderMode?"✓ Done":"⇅ Reorder"}</button>
+          </div>
         </div>
 
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:8}}>
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:"0.94rem",fontWeight:700,
             color:"#1c1917"}}>{subject.name}</div>
-          <div style={{fontSize:"0.65rem",color:"#a09890"}}>Hi {studentName} 👋</div>
+          <div style={{fontSize:"0.65rem",color:"#a09890"}}>Hi {user.name} 👋</div>
         </div>
         <ProgBar pct={sp.pct} color={subject.color} h={5}/>
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.65rem",color:"#a09890",marginTop:4}}>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.65rem",
+          color:"#a09890",marginTop:4}}>
           <span>{sp.done}/{sp.total} chapters done</span>
           <span style={{color:subject.text,fontWeight:600}}>{sp.pct}% complete</span>
         </div>
@@ -602,9 +948,9 @@ function App() {
       {/* Chapter list */}
       <div style={{padding:"14px 16px 50px"}}>
         {subject.sets
-          ?subject.sets.map(set=>{
-              const sKey=`${subject.id}_${set.id}`;
-              return(
+          ? subject.sets.map(set=>{
+              const sKey = `${subject.id}_${set.id}`;
+              return (
                 <div key={set.id} style={{marginBottom:28}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
                     <div style={{fontFamily:"'Playfair Display',serif",fontSize:"0.9rem",
@@ -618,11 +964,12 @@ function App() {
                 </div>
               );
             })
-          :<>{renderRows(subject.id,getOrder(subject.id))}{renderAdd(subject.id)}</>
+          : <>{renderRows(subject.id,getOrder(subject.id))}{renderAdd(subject.id)}</>
         }
       </div>
 
       {editingName&&<EditNameModal/>}
+      {logoutConfirm&&<LogoutModal/>}
 
       {/* Note modal */}
       {noteModal&&(
@@ -632,7 +979,9 @@ function App() {
             <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:"1rem",
               color:"#1c1917",marginBottom:4}}>Revision Notes</div>
             <div style={{fontSize:"0.74rem",color:"#a09890",marginBottom:14,lineHeight:1.4,
-              borderBottom:"1px solid #ede9e3",paddingBottom:11}}>{st.chapterNames[noteModal]}</div>
+              borderBottom:"1px solid #ede9e3",paddingBottom:11}}>
+              {st.chapterNames[noteModal]}
+            </div>
             <textarea value={noteText} onChange={e=>setNoteText(e.target.value)}
               placeholder="Notes, mnemonics, key points, case laws…"
               style={{width:"100%",minHeight:130,background:"#faf8f5",border:"1.5px solid #ede9e3",
@@ -654,7 +1003,48 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+// ──────────────────────────────────────────────────────────
+// ROOT — manages auth state
+// ──────────────────────────────────────────────────────────
+function Root() {
+  const [authState, setAuthState] = useState("checking"); // checking | auth | app
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const sess = sessionGet();
+    if (sess && sess.username && sess.name) {
+      setCurrentUser(sess);
+      setAuthState("app");
+    } else {
+      setAuthState("auth");
+    }
+  }, []);
+
+  const handleLogin = user => {
+    sessionSet(user);
+    setCurrentUser(user);
+    setAuthState("app");
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setAuthState("auth");
+  };
+
+  if (authState==="checking") return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",
+      height:"100vh",background:"#f7f4ef",flexDirection:"column",gap:12}}>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:"1.1rem",fontWeight:700,
+        color:"#1c1917"}}>📚</div>
+      <div style={{color:"#a09890",fontSize:"0.8rem"}}>Loading…</div>
+    </div>
+  );
+
+  if (authState==="auth") return <AuthScreen onLogin={handleLogin}/>;
+  return <TrackerApp user={currentUser} onLogout={handleLogout}/>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(Root));
 </script>
 </body>
 </html>
