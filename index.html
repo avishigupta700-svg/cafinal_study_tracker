@@ -4,17 +4,72 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>CA Final Revision Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:#0f172a;font-family:system-ui,sans-serif}
-  ::-webkit-scrollbar{width:4px}
-  ::-webkit-scrollbar-track{background:#1e293b}
-  ::-webkit-scrollbar-thumb{background:#334155;border-radius:2px}
-  textarea{font-family:inherit}
-  input::placeholder{color:#475569}
+  html{scroll-behavior:smooth}
+  body{
+    background:#f7f4ef;
+    font-family:'DM Sans',sans-serif;
+    color:#1c1917;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::-webkit-scrollbar{width:5px;height:5px}
+  ::-webkit-scrollbar-track{background:#ede9e3}
+  ::-webkit-scrollbar-thumb{background:#c9bfb3;border-radius:10px}
+  textarea,input,button{font-family:'DM Sans',sans-serif}
+  input::placeholder,textarea::placeholder{color:#b5aca0}
+
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes scaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
+
+  .fade-up{animation:fadeUp 0.32s ease both}
+  .fade-up:nth-child(1){animation-delay:0.04s}
+  .fade-up:nth-child(2){animation-delay:0.09s}
+  .fade-up:nth-child(3){animation-delay:0.14s}
+  .fade-up:nth-child(4){animation-delay:0.19s}
+  .fade-up:nth-child(5){animation-delay:0.24s}
+  .fade-up:nth-child(6){animation-delay:0.29s}
+
+  .subj-card{
+    background:#fff;
+    border-radius:16px;
+    padding:16px;
+    cursor:pointer;
+    border:1.5px solid #ede9e3;
+    box-shadow:0 1px 3px rgba(0,0,0,0.04),0 4px 14px rgba(0,0,0,0.04);
+    transition:transform 0.2s ease,box-shadow 0.2s ease;
+  }
+  .subj-card:hover{
+    transform:translateY(-2px);
+    box-shadow:0 4px 8px rgba(0,0,0,0.06),0 16px 36px rgba(0,0,0,0.08);
+  }
+  .chapter-row{
+    background:#fff;
+    border-radius:12px;
+    padding:11px 14px;
+    margin-bottom:8px;
+    border:1.5px solid #ede9e3;
+    border-left-width:3px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.03);
+    display:flex;gap:10px;align-items:flex-start;
+    transition:box-shadow 0.15s;
+  }
+  .chapter-row:hover{box-shadow:0 2px 10px rgba(0,0,0,0.07)}
+
+  .modal-bg{
+    position:fixed;inset:0;
+    background:rgba(28,25,23,0.42);
+    backdrop-filter:blur(5px);
+    display:flex;align-items:center;justify-content:center;
+    padding:20px;z-index:50;
+    animation:scaleIn 0.18s ease;
+  }
 </style>
 </head>
 <body>
@@ -25,295 +80,221 @@ const EXAM_DATE = new Date("2026-11-01");
 const getDays = () => Math.max(0, Math.ceil((EXAM_DATE - new Date()) / 86400000));
 const uid = () => Math.random().toString(36).slice(2, 10);
 
+// Per-subject colors tuned for a light/white background
 const SUBJECT_DEFS = [
-  { id:"fr", name:"Financial Reporting", short:"FR", color:"#3B82F6",
-    chapters:[
-      "Conceptual Framework & Ind AS Overview","Ind AS 1 – Presentation of Financial Statements",
-      "Ind AS 2 – Inventories","Ind AS 7 – Statement of Cash Flows",
-      "Ind AS 8 – Accounting Policies, Changes & Errors","Ind AS 10 – Events after Reporting Period",
-      "Ind AS 12 – Income Taxes","Ind AS 16 – Property, Plant & Equipment",
-      "Ind AS 19 – Employee Benefits","Ind AS 20 – Government Grants",
-      "Ind AS 21 – Effects of Foreign Exchange Rates","Ind AS 23 – Borrowing Costs",
-      "Ind AS 24 – Related Party Disclosures","Ind AS 32 – Financial Instruments: Presentation",
-      "Ind AS 33 – Earnings Per Share","Ind AS 36 – Impairment of Assets",
-      "Ind AS 37 – Provisions & Contingent Liabilities","Ind AS 38 – Intangible Assets",
-      "Ind AS 40 – Investment Property","Ind AS 103 – Business Combinations",
-      "Ind AS 105 – Non-current Assets Held for Sale","Ind AS 108 – Operating Segments",
-      "Ind AS 109 – Financial Instruments","Ind AS 110 – Consolidated Financial Statements",
-      "Ind AS 111 – Joint Arrangements","Ind AS 113 – Fair Value Measurement",
-      "Ind AS 115 – Revenue from Contracts with Customers","Ind AS 116 – Leases",
-      "Ind AS 101 – First-time Adoption of Ind AS",
-    ]
-  },
-  { id:"afm", name:"Advanced Financial Management", short:"AFM", color:"#8B5CF6",
-    chapters:[
-      "Financial Policy & Corporate Strategy","Risk Management","Security Analysis",
-      "Security Valuation","Portfolio Management","Securitization","Mutual Funds",
-      "Derivatives – Futures & Forwards","Derivatives – Options",
-      "Interest Rate Risk Management","Foreign Exchange Exposure & Risk",
-      "International Financial Management","Corporate Valuation",
-      "Mergers, Acquisitions & Restructuring","Startup Finance & Venture Capital",
-    ]
-  },
-  { id:"aaa", name:"Advanced Auditing & Professional Ethics", short:"AAA", color:"#10B981",
-    chapters:[
-      "Quality Control & Engagement Standards","Audit Planning, Strategy & Risk Assessment",
-      "Internal Control Evaluation","Audit Evidence & Procedures",
-      "Sampling & Analytical Procedures","Completion, Review & Reporting",
-      "Audit of Group Financial Statements","Special Purpose Audits",
-      "Digital Auditing & Data Analytics","Forensic Auditing & Investigation",
-      "Professional Ethics & Code of Conduct","Key Auditing Standards & Pronouncements",
-    ]
-  },
-  { id:"dt", name:"Direct Tax Laws & International Taxation", short:"DT", color:"#F59E0B",
-    chapters:[
-      "Basic Concepts & Residence","Incomes Exempt from Tax","Income from Salaries",
-      "Income from House Property","Profits & Gains from Business or Profession",
-      "Capital Gains","Income from Other Sources","Clubbing & Set-off of Income",
-      "Deductions from Gross Total Income","Assessment of Various Entities","TDS & TCS",
-      "Advance Tax, Interest & Fees","Assessment Procedures & Appeals",
-      "Transfer Pricing","International Taxation & DTAA","Tax Planning & Anti-avoidance",
-    ]
-  },
-  { id:"idt", name:"Indirect Tax Laws", short:"IDT", color:"#EF4444",
-    chapters:[
-      "GST – Concept of Supply","GST – Charge & Composition Levy","GST – Exemptions",
-      "GST – Time of Supply","GST – Place of Supply","GST – Value of Supply",
-      "GST – Input Tax Credit","GST – Registration","GST – Tax Invoice, Accounts & Records",
-      "GST – Returns","GST – Payment of Tax","GST – Refund","GST – Assessment & Audit",
-      "GST – Demand & Recovery","GST – Appeals & Revision","GST – Advance Ruling",
-      "GST – Offences & Penalties","Customs – Basic Concepts & Levy",
-      "Customs – Valuation & Assessment","Customs – Import & Export Procedures",
-      "Customs – Drawback & Refund","Foreign Trade Policy – Overview",
-    ]
-  },
-  { id:"spom", name:"SPOM Set-A & Set-B", short:"SPOM", color:"#14B8A6",
+  { id:"fr",   name:"Financial Reporting",                      short:"FR",   color:"#2563EB", light:"#eff6ff", text:"#1d4ed8",
+    chapters:["Conceptual Framework & Ind AS Overview","Ind AS 1 – Presentation of Financial Statements","Ind AS 2 – Inventories","Ind AS 7 – Statement of Cash Flows","Ind AS 8 – Accounting Policies, Changes & Errors","Ind AS 10 – Events after Reporting Period","Ind AS 12 – Income Taxes","Ind AS 16 – Property, Plant & Equipment","Ind AS 19 – Employee Benefits","Ind AS 20 – Government Grants","Ind AS 21 – Effects of Foreign Exchange Rates","Ind AS 23 – Borrowing Costs","Ind AS 24 – Related Party Disclosures","Ind AS 32 – Financial Instruments: Presentation","Ind AS 33 – Earnings Per Share","Ind AS 36 – Impairment of Assets","Ind AS 37 – Provisions & Contingent Liabilities","Ind AS 38 – Intangible Assets","Ind AS 40 – Investment Property","Ind AS 103 – Business Combinations","Ind AS 105 – Non-current Assets Held for Sale","Ind AS 108 – Operating Segments","Ind AS 109 – Financial Instruments","Ind AS 110 – Consolidated Financial Statements","Ind AS 111 – Joint Arrangements","Ind AS 113 – Fair Value Measurement","Ind AS 115 – Revenue from Contracts with Customers","Ind AS 116 – Leases","Ind AS 101 – First-time Adoption of Ind AS"]},
+  { id:"afm",  name:"Advanced Financial Management",            short:"AFM",  color:"#7C3AED", light:"#f5f3ff", text:"#6d28d9",
+    chapters:["Financial Policy & Corporate Strategy","Risk Management","Security Analysis","Security Valuation","Portfolio Management","Securitization","Mutual Funds","Derivatives – Futures & Forwards","Derivatives – Options","Interest Rate Risk Management","Foreign Exchange Exposure & Risk","International Financial Management","Corporate Valuation","Mergers, Acquisitions & Restructuring","Startup Finance & Venture Capital"]},
+  { id:"aaa",  name:"Advanced Auditing & Professional Ethics",  short:"AAA",  color:"#059669", light:"#ecfdf5", text:"#047857",
+    chapters:["Quality Control & Engagement Standards","Audit Planning, Strategy & Risk Assessment","Internal Control Evaluation","Audit Evidence & Procedures","Sampling & Analytical Procedures","Completion, Review & Reporting","Audit of Group Financial Statements","Special Purpose Audits","Digital Auditing & Data Analytics","Forensic Auditing & Investigation","Professional Ethics & Code of Conduct","Key Auditing Standards & Pronouncements"]},
+  { id:"dt",   name:"Direct Tax Laws & International Taxation", short:"DT",   color:"#B45309", light:"#fffbeb", text:"#92400e",
+    chapters:["Basic Concepts & Residence","Incomes Exempt from Tax","Income from Salaries","Income from House Property","Profits & Gains from Business or Profession","Capital Gains","Income from Other Sources","Clubbing & Set-off of Income","Deductions from Gross Total Income","Assessment of Various Entities","TDS & TCS","Advance Tax, Interest & Fees","Assessment Procedures & Appeals","Transfer Pricing","International Taxation & DTAA","Tax Planning & Anti-avoidance"]},
+  { id:"idt",  name:"Indirect Tax Laws",                        short:"IDT",  color:"#DC2626", light:"#fef2f2", text:"#b91c1c",
+    chapters:["GST – Concept of Supply","GST – Charge & Composition Levy","GST – Exemptions","GST – Time of Supply","GST – Place of Supply","GST – Value of Supply","GST – Input Tax Credit","GST – Registration","GST – Tax Invoice, Accounts & Records","GST – Returns","GST – Payment of Tax","GST – Refund","GST – Assessment & Audit","GST – Demand & Recovery","GST – Appeals & Revision","GST – Advance Ruling","GST – Offences & Penalties","Customs – Basic Concepts & Levy","Customs – Valuation & Assessment","Customs – Import & Export Procedures","Customs – Drawback & Refund","Foreign Trade Policy – Overview"]},
+  { id:"spom", name:"SPOM Set-A & Set-B",                       short:"SPOM", color:"#0891B2", light:"#ecfeff", text:"#0e7490",
     sets:[
-      { id:"set_a", name:"SPOM Set-A — Law", timeWindow:"1–2 hrs", chapters:[
-        "Company Law – Share Capital & Debentures","Company Law – Meetings & Resolutions",
-        "Company Law – Directors & KMP","Company Law – Accounts, Audit & Dividends",
-        "Company Law – Compromises & Winding Up","SEBI Regulations",
-        "FEMA & Foreign Exchange Management","Insolvency & Bankruptcy Code (IBC)",
-        "Competition Act",
-      ]},
-      { id:"set_b", name:"SPOM Set-B — SCPM", timeWindow:"1–2 hrs", chapters:[
-        "Strategic Cost Management Overview","Cost Management Techniques",
-        "Decision Making & Marginal Costing","Budgeting, Forecasting & Beyond Budgeting",
-        "Standard Costing & Variance Analysis","Transfer Pricing",
-        "Performance Measurement Systems","Balanced Scorecard & KPIs",
-        "Quality Management – TQM, Six Sigma","Operations Management – Supply Chain",
-        "Project Management",
-      ]},
-    ]
-  },
+      {id:"set_a",name:"SPOM Set-A — Law",   timeWindow:"1–2 hrs",chapters:["Company Law – Share Capital & Debentures","Company Law – Meetings & Resolutions","Company Law – Directors & KMP","Company Law – Accounts, Audit & Dividends","Company Law – Compromises & Winding Up","SEBI Regulations","FEMA & Foreign Exchange Management","Insolvency & Bankruptcy Code (IBC)","Competition Act"]},
+      {id:"set_b",name:"SPOM Set-B — SCPM",  timeWindow:"1–2 hrs",chapters:["Strategic Cost Management Overview","Cost Management Techniques","Decision Making & Marginal Costing","Budgeting, Forecasting & Beyond Budgeting","Standard Costing & Variance Analysis","Transfer Pricing","Performance Measurement Systems","Balanced Scorecard & KPIs","Quality Management – TQM, Six Sigma","Operations Management – Supply Chain","Project Management"]},
+    ]},
 ];
 
-// ── Storage: robust localStorage with optional Claude artifact API ──
+// ── Persistent storage ──
 const STORAGE_KEY = "cafinal_v3";
-
 function saveData(data) {
   const json = JSON.stringify(data);
-  try {
-    localStorage.setItem(STORAGE_KEY, json);
-  } catch(e) {
-    console.warn("localStorage save failed:", e);
-  }
-  // Also push to Claude artifact storage if available
-  try {
-    if (window.storage && typeof window.storage.set === "function") {
-      window.storage.set(STORAGE_KEY, json);
-    }
-  } catch(e) {}
+  try { localStorage.setItem(STORAGE_KEY, json); } catch(e) { console.warn("save failed:", e); }
+  try { if (window.storage?.set) window.storage.set(STORAGE_KEY, json); } catch(e) {}
 }
-
 async function loadData() {
-  // 1. Try localStorage first (works offline, most reliable)
+  try { const r = localStorage.getItem(STORAGE_KEY); if (r) return JSON.parse(r); } catch(e) {}
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch(e) { console.warn("localStorage read failed:", e); }
-  // 2. Fall back to Claude artifact storage
-  try {
-    if (window.storage && typeof window.storage.get === "function") {
+    if (window.storage?.get) {
       const r = await window.storage.get(STORAGE_KEY);
-      if (r && r.value) {
-        const parsed = JSON.parse(r.value);
-        // Seed localStorage for next load
-        try { localStorage.setItem(STORAGE_KEY, r.value); } catch {}
-        return parsed;
-      }
+      if (r?.value) { try { localStorage.setItem(STORAGE_KEY, r.value); } catch {} return JSON.parse(r.value); }
     }
   } catch(e) {}
   return null;
 }
 
 function buildInit() {
-  const chapterOrder = {}, chapterNames = {};
+  const chapterOrder={}, chapterNames={};
   for (const s of SUBJECT_DEFS) {
-    if (s.sets) {
-      for (const set of s.sets) {
-        const key = `${s.id}_${set.id}`;
-        chapterOrder[key] = set.chapters.map(ch => { const id=uid(); chapterNames[id]=ch; return id; });
-      }
-    } else {
-      chapterOrder[s.id] = s.chapters.map(ch => { const id=uid(); chapterNames[id]=ch; return id; });
-    }
+    if (s.sets) { for (const set of s.sets) { const k=`${s.id}_${set.id}`; chapterOrder[k]=set.chapters.map(ch=>{const id=uid();chapterNames[id]=ch;return id;}); } }
+    else { chapterOrder[s.id]=s.chapters.map(ch=>{const id=uid();chapterNames[id]=ch;return id;}); }
   }
-  return { topicData:{}, chapterOrder, chapterNames };
+  return {topicData:{},chapterOrder,chapterNames};
 }
 
-const STATUS_SEQ = ["pending","inprogress","done"];
-const PRI_SEQ    = ["high","medium","low"];
-const SS = {
-  pending:    { c:"#64748b", bg:"#64748b15", l:"○ Pending" },
-  inprogress: { c:"#F59E0B", bg:"#F59E0B18", l:"⟳ In Progress" },
-  done:       { c:"#10B981", bg:"#10B98118", l:"✓ Done" },
+const STATUS_SEQ=["pending","inprogress","done"];
+const PRI_SEQ=["high","medium","low"];
+const SS={
+  pending:   {c:"#9ca3af",bg:"#f9fafb",border:"#e5e7eb",l:"○ Pending"},
+  inprogress:{c:"#b45309",bg:"#fffbeb",border:"#fde68a",l:"⟳ In Progress"},
+  done:      {c:"#047857",bg:"#ecfdf5",border:"#a7f3d0",l:"✓ Done"},
 };
-const PS = {
-  high:   { c:"#EF4444", bg:"#EF444418", l:"🔴 High" },
-  medium: { c:"#F59E0B", bg:"#F59E0B18", l:"🟡 Med" },
-  low:    { c:"#3B82F6", bg:"#3B82F618", l:"🔵 Low" },
+const PS={
+  high:  {c:"#b91c1c",bg:"#fef2f2",border:"#fecaca",l:"🔴 High"},
+  medium:{c:"#92400e",bg:"#fffbeb",border:"#fde68a",l:"🟡 Med"},
+  low:   {c:"#1d4ed8",bg:"#eff6ff",border:"#bfdbfe",l:"🔵 Low"},
 };
+const RTOGGLE=[
+  {on:"#4f46e5",onBg:"#eef2ff",onBorder:"#c7d2fe"},
+  {on:"#be185d",onBg:"#fdf2f8",onBorder:"#fbcfe8"},
+  {on:"#c2410c",onBg:"#fff7ed",onBorder:"#fed7aa"},
+];
 
-const { useState, useEffect, useCallback } = React;
+const {useState,useEffect,useCallback,useRef}=React;
 
-const ProgBar = ({ pct, color, h=6 }) => (
-  React.createElement('div', {style:{background:"#0f172a",borderRadius:99,height:h,overflow:"hidden"}},
-    React.createElement('div', {style:{height:"100%",width:`${pct}%`,background:color,transition:"width 0.4s",borderRadius:99}})
-  )
+const ProgBar=({pct,color,h=5})=>(
+  <div style={{background:"#ede9e3",borderRadius:99,height:h,overflow:"hidden"}}>
+    <div style={{height:"100%",width:`${pct}%`,background:color,transition:"width 0.5s cubic-bezier(.4,0,.2,1)",borderRadius:99}}/>
+  </div>
 );
 
-const Circle = ({ pct, color, size=56 }) => {
-  const r=(size-8)/2, c=2*Math.PI*r, d=(pct/100)*c;
-  return (
-    React.createElement('svg', {width:size,height:size},
-      React.createElement('circle',{cx:size/2,cy:size/2,r,fill:"none",stroke:"#1e293b",strokeWidth:5}),
-      React.createElement('circle',{cx:size/2,cy:size/2,r,fill:"none",stroke:color,strokeWidth:5,
-        strokeDasharray:`${d} ${c-d}`,strokeLinecap:"round",
-        transform:`rotate(-90 ${size/2} ${size/2})`,style:{transition:"stroke-dasharray 0.4s"}}),
-      React.createElement('text',{x:size/2,y:size/2+1,textAnchor:"middle",dominantBaseline:"middle",
-        fill:color,fontSize:size<50?9:11,fontWeight:700}, `${pct}%`)
-    )
+const Ring=({pct,color,track="#e7e5e4",size=56})=>{
+  const r=(size-7)/2,c=2*Math.PI*r,d=(pct/100)*c;
+  return(
+    <svg width={size} height={size}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={track} strokeWidth={4}/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={4}
+        strokeDasharray={`${d} ${c-d}`} strokeLinecap="round"
+        transform={`rotate(-90 ${size/2} ${size/2})`} style={{transition:"stroke-dasharray 0.5s cubic-bezier(.4,0,.2,1)"}}/>
+      <text x={size/2} y={size/2+0.5} textAnchor="middle" dominantBaseline="middle"
+        fill={color} fontSize={size<48?8:10} fontWeight={700} fontFamily="DM Sans,sans-serif">{pct}%</text>
+    </svg>
   );
 };
 
 function App() {
-  const [view, setView]               = useState("dashboard");
-  const [st, setSt]                   = useState(null);
-  const [filterStatus, setFilter]     = useState("all");
-  const [addInputs, setAddInputs]     = useState({});
-  const [noteModal, setNoteModal]     = useState(null);
-  const [noteText, setNoteText]       = useState("");
-  const [reorderMode, setReorderMode] = useState(false);
+  const [view,setView]=useState("dashboard");
+  const [st,setSt]=useState(null);
+  const [filterStatus,setFilter]=useState("all");
+  const [addInputs,setAddInputs]=useState({});
+  const [noteModal,setNoteModal]=useState(null);
+  const [noteText,setNoteText]=useState("");
+  const [reorderMode,setReorderMode]=useState(false);
 
-  // Load on mount
-  useEffect(() => {
-    loadData().then(data => setSt(data || buildInit()));
-  }, []);
+  useEffect(()=>{ loadData().then(d=>setSt(d||buildInit())); },[]);
 
-  // Save on every state change (skip the very first render before load completes)
-  const initialized = React.useRef(false);
-  useEffect(() => {
-    if (!st) return;
-    if (!initialized.current) { initialized.current = true; return; }
+  const inited=useRef(false);
+  useEffect(()=>{
+    if(!st) return;
+    if(!inited.current){inited.current=true;return;}
     saveData(st);
-  }, [st]);
+  },[st]);
 
-  const mut = useCallback(fn => {
-    setSt(prev => fn(prev));
-  }, []);
+  const mut=useCallback(fn=>setSt(prev=>fn(prev)),[]);
 
-  if (!st) return (
-    React.createElement('div', {style:{display:"flex",alignItems:"center",justifyContent:"center",
-      height:"100vh",background:"#0f172a",color:"#94a3b8",fontFamily:"system-ui"}},
-      "Loading your tracker…")
+  if(!st) return(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",
+      background:"#f7f4ef",color:"#a09890",fontSize:"0.88rem"}}>Loading…</div>
   );
 
-  const getTopic = id => st.topicData[id] || { status:"pending", priority:"medium", note:"" };
-  const setTopic = (id, patch) => mut(p => ({...p, topicData:{...p.topicData,[id]:{...getTopic(id),...patch}}}));
-  const getOrder = sKey => st.chapterOrder[sKey] || [];
+  const getTopic=id=>st.topicData[id]||{status:"pending",priority:"medium",note:""};
+  const setTopic=(id,patch)=>mut(p=>({...p,topicData:{...p.topicData,[id]:{...getTopic(id),...patch}}}));
+  const getOrder=sKey=>st.chapterOrder[sKey]||[];
 
-  const addChapter = sKey => {
-    const name = (addInputs[sKey]||"").trim();
-    if (!name) return;
-    const id = uid();
-    mut(p => ({...p,
-      chapterOrder:{...p.chapterOrder,[sKey]:[...getOrder(sKey), id]},
-      chapterNames:{...p.chapterNames,[id]:name},
-    }));
-    setAddInputs(a => ({...a,[sKey]:""}));
+  const addChapter=sKey=>{
+    const name=(addInputs[sKey]||"").trim(); if(!name) return;
+    const id=uid();
+    mut(p=>({...p,chapterOrder:{...p.chapterOrder,[sKey]:[...getOrder(sKey),id]},chapterNames:{...p.chapterNames,[id]:name}}));
+    setAddInputs(a=>({...a,[sKey]:""}));
   };
 
-  const moveChapter = (sKey, idx, dir) => {
-    const order = [...getOrder(sKey)];
-    const ni = idx + dir;
-    if (ni < 0 || ni >= order.length) return;
-    [order[idx], order[ni]] = [order[ni], order[idx]];
-    mut(p => ({...p, chapterOrder:{...p.chapterOrder,[sKey]:order}}));
+  const moveChapter=(sKey,idx,dir)=>{
+    const order=[...getOrder(sKey)],ni=idx+dir;
+    if(ni<0||ni>=order.length) return;
+    [order[idx],order[ni]]=[order[ni],order[idx]];
+    mut(p=>({...p,chapterOrder:{...p.chapterOrder,[sKey]:order}}));
   };
 
-  const deleteChapter = (sKey, id) => {
-    mut(p => ({...p, chapterOrder:{...p.chapterOrder,[sKey]:p.chapterOrder[sKey].filter(x=>x!==id)}}));
+  const delChapter=(sKey,id)=>mut(p=>({...p,chapterOrder:{...p.chapterOrder,[sKey]:p.chapterOrder[sKey].filter(x=>x!==id)}}));
+
+  const getProgress=ids=>{
+    const done=ids.filter(id=>getTopic(id).status==="done").length;
+    const inp=ids.filter(id=>getTopic(id).status==="inprogress").length;
+    return{done,inp,total:ids.length,pct:ids.length?Math.round(done/ids.length*100):0};
   };
 
-  const getProgress = ids => {
-    const done = ids.filter(id => getTopic(id).status==="done").length;
-    const inp  = ids.filter(id => getTopic(id).status==="inprogress").length;
-    return { done, inp, total:ids.length, pct: ids.length ? Math.round(done/ids.length*100) : 0 };
-  };
+  const allIds=SUBJECT_DEFS.flatMap(s=>s.sets?s.sets.flatMap(set=>getOrder(`${s.id}_${set.id}`)):getOrder(s.id));
+  const overall=getProgress(allIds);
+  const subject=SUBJECT_DEFS.find(s=>s.id===view);
 
-  const allIds = SUBJECT_DEFS.flatMap(s =>
-    s.sets ? s.sets.flatMap(set => getOrder(`${s.id}_${set.id}`)) : getOrder(s.id)
-  );
-  const overall = getProgress(allIds);
-  const subject = SUBJECT_DEFS.find(s => s.id === view);
+  // ─── DASHBOARD ───────────────────────────────────────────────
+  if(view==="dashboard") return(
+    <div style={{minHeight:"100vh",background:"#f7f4ef"}}>
 
-  // ── DASHBOARD ──
-  if (view === "dashboard") return (
-    <div style={{fontFamily:"system-ui,sans-serif",minHeight:"100vh",background:"#0f172a",color:"#f1f5f9"}}>
-      <div style={{background:"#1e293b",padding:"18px 20px 14px",borderBottom:"1px solid #334155"}}>
-        <div style={{fontSize:"1.2rem",fontWeight:800,letterSpacing:"-0.5px"}}>CA Final Revision Tracker</div>
-        <div style={{color:"#94a3b8",fontSize:"0.78rem",marginTop:2}}>November 2026 · ICAI New Scheme</div>
+      {/* Top bar */}
+      <div style={{background:"#fff",borderBottom:"1.5px solid #ede9e3",padding:"18px 20px 14px",
+        boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}}>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:"1.4rem",fontWeight:700,
+          color:"#1c1917",letterSpacing:"-0.4px"}}>CA Final Tracker</div>
+        <div style={{color:"#a09890",fontSize:"0.71rem",marginTop:3,letterSpacing:"0.05em",
+          textTransform:"uppercase",fontWeight:500}}>November 2026 · ICAI New Scheme</div>
       </div>
 
-      <div style={{padding:"16px 16px 32px"}}>
-        <div style={{background:"linear-gradient(135deg,#1e3a5f,#1e293b)",border:"1px solid #334155",
-          borderRadius:14,padding:"16px 18px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div style={{padding:"16px 16px 40px"}}>
+
+        {/* Countdown */}
+        <div style={{background:"linear-gradient(135deg,#1c1917 0%,#2d2522 55%,#1c1917 100%)",
+          borderRadius:18,padding:"20px 22px",marginBottom:14,display:"flex",
+          justifyContent:"space-between",alignItems:"center",position:"relative",overflow:"hidden"}}>
+          <div style={{position:"absolute",top:-50,right:-50,width:180,height:180,
+            background:"radial-gradient(circle,rgba(255,255,255,0.05) 0%,transparent 70%)",borderRadius:"50%"}}/>
           <div>
-            <div style={{color:"#94a3b8",fontSize:"0.7rem",fontWeight:600,letterSpacing:1,marginBottom:4}}>DAYS TO EXAM</div>
-            <div style={{fontSize:"2.8rem",fontWeight:900,lineHeight:1,color:"#f1f5f9"}}>{getDays()}</div>
-            <div style={{color:"#64748b",fontSize:"0.7rem",marginTop:4}}>Nov 1, 2026</div>
+            <div style={{color:"#78716c",fontSize:"0.6rem",fontWeight:600,letterSpacing:"0.14em",
+              textTransform:"uppercase",marginBottom:6}}>Days to Exam</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:"3.4rem",fontWeight:800,
+              lineHeight:1,color:"#fafaf9",letterSpacing:"-2px"}}>{getDays()}</div>
+            <div style={{color:"#57534e",fontSize:"0.68rem",marginTop:6}}>1 November 2026</div>
           </div>
-          <div style={{textAlign:"right"}}>
-            <Circle pct={overall.pct} color="#10B981" size={70}/>
-            <div style={{color:"#64748b",fontSize:"0.68rem",marginTop:4}}>{overall.done}/{overall.total} done</div>
+          <div style={{textAlign:"center"}}>
+            <Ring pct={overall.pct} color="#d4a853" track="rgba(255,255,255,0.1)" size={72}/>
+            <div style={{color:"#57534e",fontSize:"0.64rem",marginTop:5}}>{overall.done}/{overall.total} done</div>
           </div>
         </div>
 
-        <div style={{marginBottom:18}}>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.7rem",color:"#64748b",marginBottom:5}}>
-            <span>Overall Progress</span>
-            <span>{overall.done} done · {overall.inp} in progress · {overall.total-overall.done-overall.inp} pending</span>
+        {/* Overall stats strip */}
+        <div style={{background:"#fff",borderRadius:14,padding:"13px 16px",marginBottom:14,
+          border:"1.5px solid #ede9e3",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+            <span style={{fontSize:"0.7rem",color:"#57534e",fontWeight:500}}>Overall Progress</span>
+            <span style={{fontSize:"0.65rem",color:"#a09890"}}>{overall.pct}% complete</span>
           </div>
-          <ProgBar pct={overall.pct} color="linear-gradient(90deg,#10B981,#3B82F6)" h={8}/>
+          <ProgBar pct={overall.pct} color="linear-gradient(90deg,#d4a853,#b45309)" h={6}/>
+          <div style={{display:"flex",gap:8,marginTop:10}}>
+            {[["#047857","#ecfdf5","✓ Done",overall.done],
+              ["#b45309","#fffbeb","⟳ Active",overall.inp],
+              ["#9ca3af","#f9fafb","○ Left",overall.total-overall.done-overall.inp]].map(([c,bg,l,v])=>(
+              <div key={l} style={{flex:1,background:bg,borderRadius:8,padding:"7px 10px",textAlign:"center",border:`1px solid ${c}20`}}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:"1.05rem",fontWeight:700,color:c}}>{v}</div>
+                <div style={{fontSize:"0.59rem",color:c,opacity:0.75,marginTop:1}}>{l}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
+        {/* Subject cards */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          {SUBJECT_DEFS.map(s => {
-            const ids = s.sets ? s.sets.flatMap(set=>getOrder(`${s.id}_${set.id}`)) : getOrder(s.id);
-            const p = getProgress(ids);
-            return (
-              <div key={s.id}
-                onClick={() => { setView(s.id); setReorderMode(false); setFilter("all"); }}
-                style={{background:"#1e293b",borderRadius:12,padding:14,cursor:"pointer",border:`1px solid ${s.color}30`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
-                  <span style={{background:s.color,color:"#fff",borderRadius:6,padding:"2px 8px",fontSize:"0.7rem",fontWeight:800}}>{s.short}</span>
-                  <Circle pct={p.pct} color={s.color} size={40}/>
+          {SUBJECT_DEFS.map(s=>{
+            const ids=s.sets?s.sets.flatMap(set=>getOrder(`${s.id}_${set.id}`)):getOrder(s.id);
+            const p=getProgress(ids);
+            return(
+              <div key={s.id} className="subj-card fade-up"
+                onClick={()=>{setView(s.id);setReorderMode(false);setFilter("all");}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                  <span style={{background:s.light,color:s.text,borderRadius:7,padding:"3px 9px",
+                    fontSize:"0.63rem",fontWeight:700,letterSpacing:"0.05em",
+                    border:`1px solid ${s.color}22`}}>{s.short}</span>
+                  <Ring pct={p.pct} color={s.color} track={s.light} size={40}/>
                 </div>
-                <div style={{fontSize:"0.75rem",color:"#cbd5e1",lineHeight:1.35,marginBottom:8}}>{s.name}</div>
+                <div style={{fontSize:"0.72rem",color:"#57534e",lineHeight:1.45,marginBottom:10,fontWeight:400}}>{s.name}</div>
                 <ProgBar pct={p.pct} color={s.color} h={4}/>
-                <div style={{fontSize:"0.65rem",color:"#475569",marginTop:5}}>
-                  {p.done}✓ · {p.inp}⟳ · {p.total-p.done-p.inp}○
+                <div style={{display:"flex",gap:10,fontSize:"0.62rem",marginTop:7}}>
+                  <span style={{color:"#047857",fontWeight:500}}>{p.done}✓</span>
+                  <span style={{color:"#b45309",fontWeight:500}}>{p.inp}⟳</span>
+                  <span style={{color:"#a09890"}}>{p.total-p.done-p.inp}○</span>
                 </div>
               </div>
             );
@@ -323,197 +304,222 @@ function App() {
     </div>
   );
 
-  // ── SUBJECT VIEW ──
-  const subIds = subject.sets
-    ? subject.sets.flatMap(set => getOrder(`${subject.id}_${set.id}`))
-    : getOrder(subject.id);
-  const sp = getProgress(subIds);
+  // ─── SUBJECT VIEW ────────────────────────────────────────────
+  const subIds=subject.sets?subject.sets.flatMap(set=>getOrder(`${subject.id}_${set.id}`)):getOrder(subject.id);
+  const sp=getProgress(subIds);
 
-  const renderRows = (sKey, ids) =>
-    ids.map((id, idx) => {
-      const state = getTopic(id);
-      if (!reorderMode && filterStatus !== "all" && state.status !== filterStatus) return null;
-      const s = SS[state.status], p = PS[state.priority||"medium"];
-      return (
-        <div key={id} style={{background:"#1e293b",borderRadius:10,padding:"10px 12px",marginBottom:7,
-          borderLeft:`3px solid ${reorderMode ? subject.color+"50" : s.c}`,display:"flex",gap:8,alignItems:"flex-start"}}>
+  const renderRows=(sKey,ids)=>ids.map((id,idx)=>{
+    const state=getTopic(id);
+    if(!reorderMode && filterStatus!=="all" && state.status!==filterStatus) return null;
+    const s=SS[state.status], p=PS[state.priority||"medium"];
+    const isDone=state.status==="done";
+    return(
+      <div key={id} className="chapter-row"
+        style={{borderLeftColor:reorderMode?"#d6d3d1":s.border,opacity:isDone?0.7:1}}>
 
-          {reorderMode && (
-            <div style={{display:"flex",flexDirection:"column",gap:3,flexShrink:0,paddingTop:2}}>
-              <button onClick={() => moveChapter(sKey,idx,-1)} disabled={idx===0}
-                style={{background:"#334155",color:idx===0?"#334155":"#94a3b8",border:"none",
-                  borderRadius:4,width:24,height:24,cursor:idx===0?"default":"pointer",
-                  fontSize:"0.65rem",display:"flex",alignItems:"center",justifyContent:"center"}}>▲</button>
-              <button onClick={() => moveChapter(sKey,idx,1)} disabled={idx===ids.length-1}
-                style={{background:"#334155",color:idx===ids.length-1?"#334155":"#94a3b8",border:"none",
-                  borderRadius:4,width:24,height:24,cursor:idx===ids.length-1?"default":"pointer",
-                  fontSize:"0.65rem",display:"flex",alignItems:"center",justifyContent:"center"}}>▼</button>
-            </div>
-          )}
+        {/* Reorder arrows */}
+        {reorderMode&&(
+          <div style={{display:"flex",flexDirection:"column",gap:3,flexShrink:0,paddingTop:1}}>
+            {[[-1,"▲"],[1,"▼"]].map(([d,ic])=>{
+              const dis=d===-1?idx===0:idx===ids.length-1;
+              return<button key={d} onClick={()=>moveChapter(sKey,idx,d)} disabled={dis}
+                style={{background:dis?"#f5f5f4":"#ede9e3",color:dis?"#d6d3d1":"#78716c",border:"none",
+                  borderRadius:5,width:24,height:24,cursor:dis?"default":"pointer",
+                  fontSize:"0.58rem",display:"flex",alignItems:"center",justifyContent:"center"}}>{ic}</button>;
+            })}
+          </div>
+        )}
 
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:"0.82rem",lineHeight:1.4,
-              color:state.status==="done"?"#475569":"#e2e8f0",
-              textDecoration:state.status==="done"?"line-through":"none",
-              marginBottom:reorderMode?0:8}}>
-              {st.chapterNames[id]||"(Untitled)"}
-            </div>
-            {!reorderMode && (
-              <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
-                <button onClick={() => setTopic(id,{status:STATUS_SEQ[(STATUS_SEQ.indexOf(state.status)+1)%3]})}
-                  style={{background:s.bg,color:s.c,border:"none",borderRadius:6,padding:"3px 9px",fontSize:"0.67rem",cursor:"pointer",fontWeight:600}}>{s.l}</button>
-                <button onClick={() => setTopic(id,{priority:PRI_SEQ[(PRI_SEQ.indexOf(state.priority||"medium")+1)%3]})}
-                  style={{background:p.bg,color:p.c,border:"none",borderRadius:6,padding:"3px 8px",fontSize:"0.67rem",cursor:"pointer",fontWeight:600}}>{p.l}</button>
-                <button onClick={() => {setNoteModal(id);setNoteText(state.note||"");}}
-                  style={{background:state.note?`${subject.color}20`:"#33415522",
-                    color:state.note?subject.color:"#64748b",border:"none",borderRadius:6,
-                    padding:"3px 8px",fontSize:"0.67rem",cursor:"pointer"}}>
-                  {state.note?"📝 Note":"+ Note"}</button>
-
-                {/* R1 / R2 / R3 revision round toggles */}
-                <div style={{display:"flex",gap:4,marginLeft:2}}>
-                  {["r1","r2","r3"].map((rk,ri) => {
-                    const done = !!state[rk];
-                    const labels = ["R1","R2","R3"];
-                    const activeColors = ["#6366f1","#ec4899","#f97316"];
-                    const ac = activeColors[ri];
-                    return (
-                      <button key={rk}
-                        onClick={() => setTopic(id,{[rk]:!done})}
-                        title={`Revision ${ri+1} ${done?"done":"pending"}`}
-                        style={{
-                          background: done ? ac : "#0f172a",
-                          color: done ? "#fff" : "#475569",
-                          border: `1.5px solid ${done ? ac : "#334155"}`,
-                          borderRadius:6,
-                          padding:"2px 7px",
-                          fontSize:"0.65rem",
-                          fontWeight:700,
-                          cursor:"pointer",
-                          letterSpacing:"0.03em",
-                          transition:"all 0.15s",
-                        }}>
-                        {done ? "✓ " : ""}{labels[ri]}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            {!reorderMode && state.note && (
-              <div style={{marginTop:6,background:"#0f172a",borderRadius:6,padding:"5px 9px",
-                fontSize:"0.72rem",color:"#94a3b8",lineHeight:1.4}}>{state.note}</div>
-            )}
+        <div style={{flex:1,minWidth:0}}>
+          {/* Chapter title */}
+          <div style={{fontSize:"0.82rem",lineHeight:1.45,fontWeight:isDone?400:500,
+            color:isDone?"#a09890":"#1c1917",textDecoration:isDone?"line-through":"none",
+            marginBottom:reorderMode?0:8}}>
+            {st.chapterNames[id]||"(Untitled)"}
           </div>
 
-          {reorderMode && (
-            <button onClick={() => deleteChapter(sKey,id)}
-              style={{background:"#EF444418",color:"#EF4444",border:"none",borderRadius:6,
-                padding:"4px 8px",fontSize:"0.75rem",cursor:"pointer",flexShrink:0,alignSelf:"center"}}>✕</button>
+          {/* Controls */}
+          {!reorderMode&&(
+            <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
+
+              {/* Status pill */}
+              <button onClick={()=>setTopic(id,{status:STATUS_SEQ[(STATUS_SEQ.indexOf(state.status)+1)%3]})}
+                style={{background:s.bg,color:s.c,border:`1px solid ${s.border}`,borderRadius:20,
+                  padding:"3px 10px",fontSize:"0.66rem",fontWeight:600,cursor:"pointer",transition:"all 0.15s"}}>
+                {s.l}</button>
+
+              {/* Priority pill */}
+              <button onClick={()=>setTopic(id,{priority:PRI_SEQ[(PRI_SEQ.indexOf(state.priority||"medium")+1)%3]})}
+                style={{background:p.bg,color:p.c,border:`1px solid ${p.border}`,borderRadius:20,
+                  padding:"3px 10px",fontSize:"0.66rem",fontWeight:600,cursor:"pointer",transition:"all 0.15s"}}>
+                {p.l}</button>
+
+              {/* Note pill */}
+              <button onClick={()=>{setNoteModal(id);setNoteText(state.note||"");}}
+                style={{background:state.note?subject.light:"#f5f5f4",
+                  color:state.note?subject.text:"#a09890",
+                  border:`1px solid ${state.note?subject.color+"35":"#e7e5e4"}`,
+                  borderRadius:20,padding:"3px 10px",fontSize:"0.66rem",cursor:"pointer",transition:"all 0.15s"}}>
+                {state.note?"📝 Note":"+ Note"}</button>
+
+              {/* R1 / R2 / R3 toggles */}
+              <div style={{display:"flex",gap:4,marginLeft:1}}>
+                {["r1","r2","r3"].map((rk,ri)=>{
+                  const on=!!state[rk];
+                  const t=RTOGGLE[ri];
+                  return(
+                    <button key={rk} onClick={()=>setTopic(id,{[rk]:!on})}
+                      title={`Revision ${ri+1} ${on?"complete":"pending"}`}
+                      style={{
+                        background:on?t.onBg:"#f9fafb",
+                        color:on?t.on:"#c4bdb7",
+                        border:`1.5px solid ${on?t.onBorder:"#e7e5e4"}`,
+                        borderRadius:7,padding:"3px 8px",fontSize:"0.63rem",fontWeight:700,
+                        cursor:"pointer",letterSpacing:"0.04em",
+                        transition:"all 0.17s ease",
+                        boxShadow:on?`0 1px 4px ${t.onBorder}`:"none",
+                      }}>
+                      {on?"✓ ":""}R{ri+1}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Note preview */}
+          {!reorderMode&&state.note&&(
+            <div style={{marginTop:7,background:"#faf8f5",border:"1px solid #ede9e3",borderRadius:8,
+              padding:"6px 10px",fontSize:"0.71rem",color:"#78716c",lineHeight:1.5}}>
+              {state.note}
+            </div>
           )}
         </div>
-      );
-    });
 
-  const renderAddRow = sKey => (
-    <div style={{display:"flex",gap:8,marginTop:4,marginBottom:8}}>
-      <input
-        value={addInputs[sKey]||""}
-        onChange={e => setAddInputs(a=>({...a,[sKey]:e.target.value}))}
-        onKeyDown={e => e.key==="Enter" && addChapter(sKey)}
-        placeholder="Add a topic or chapter…"
-        style={{flex:1,background:"#1e293b",border:`1px dashed ${subject.color}55`,
-          borderRadius:8,padding:"8px 12px",color:"#f1f5f9",fontSize:"0.8rem",outline:"none"}}
-      />
-      <button onClick={() => addChapter(sKey)}
-        style={{background:subject.color,color:"#fff",border:"none",borderRadius:8,
-          padding:"8px 14px",fontSize:"0.8rem",cursor:"pointer",fontWeight:700,whiteSpace:"nowrap"}}>+ Add</button>
+        {/* Delete button */}
+        {reorderMode&&(
+          <button onClick={()=>delChapter(sKey,id)}
+            style={{background:"#fef2f2",color:"#b91c1c",border:"1px solid #fecaca",borderRadius:7,
+              padding:"4px 9px",fontSize:"0.7rem",cursor:"pointer",flexShrink:0,alignSelf:"center",fontWeight:600}}>✕</button>
+        )}
+      </div>
+    );
+  });
+
+  const renderAdd=sKey=>(
+    <div style={{display:"flex",gap:8,marginTop:6,marginBottom:10}}>
+      <input value={addInputs[sKey]||""} onChange={e=>setAddInputs(a=>({...a,[sKey]:e.target.value}))}
+        onKeyDown={e=>e.key==="Enter"&&addChapter(sKey)} placeholder="Add a topic or chapter…"
+        style={{flex:1,background:"#faf8f5",border:"1.5px dashed #d4cdc5",borderRadius:10,
+          padding:"9px 13px",color:"#1c1917",fontSize:"0.79rem",outline:"none"}}/>
+      <button onClick={()=>addChapter(sKey)}
+        style={{background:subject.color,color:"#fff",border:"none",borderRadius:10,
+          padding:"9px 16px",fontSize:"0.78rem",cursor:"pointer",fontWeight:700,
+          whiteSpace:"nowrap",boxShadow:`0 2px 8px ${subject.color}45`}}>+ Add</button>
     </div>
   );
 
-  return (
-    <div style={{fontFamily:"system-ui,sans-serif",minHeight:"100vh",background:"#0f172a",color:"#f1f5f9"}}>
+  return(
+    <div style={{minHeight:"100vh",background:"#f7f4ef"}}>
 
-      <div style={{background:"#1e293b",padding:"14px 16px",borderBottom:"1px solid #334155",position:"sticky",top:0,zIndex:10}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-          <button onClick={() => { setView("dashboard"); setNoteModal(null); }}
-            style={{background:"#334155",border:"none",color:"#94a3b8",cursor:"pointer",borderRadius:8,padding:"4px 10px",fontSize:"0.78rem"}}>← Back</button>
-          <span style={{background:subject.color,color:"#fff",borderRadius:6,padding:"2px 8px",fontSize:"0.7rem",fontWeight:800}}>{subject.short}</span>
-          <button
-            onClick={() => { setReorderMode(r=>!r); setFilter("all"); }}
-            style={{marginLeft:"auto",background:reorderMode?subject.color:"#334155",
-              color:reorderMode?"#fff":"#94a3b8",border:"none",borderRadius:8,
-              padding:"5px 13px",fontSize:"0.75rem",cursor:"pointer",fontWeight:600}}>
-            {reorderMode ? "✓ Done" : "⇅ Reorder"}
-          </button>
+      {/* Sticky header */}
+      <div style={{background:"#fff",borderBottom:"1.5px solid #ede9e3",padding:"12px 16px",
+        position:"sticky",top:0,zIndex:10,boxShadow:"0 2px 10px rgba(0,0,0,0.05)"}}>
+
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:9}}>
+          <button onClick={()=>{setView("dashboard");setNoteModal(null);}}
+            style={{background:"#f5f5f4",border:"1.5px solid #e7e5e4",color:"#57534e",cursor:"pointer",
+              borderRadius:8,padding:"4px 11px",fontSize:"0.74rem",fontWeight:500}}>← Back</button>
+          <span style={{background:subject.light,color:subject.text,borderRadius:7,padding:"3px 9px",
+            fontSize:"0.65rem",fontWeight:700,border:`1px solid ${subject.color}28`,letterSpacing:"0.04em"}}>
+            {subject.short}</span>
+          <button onClick={()=>{setReorderMode(r=>!r);setFilter("all");}}
+            style={{marginLeft:"auto",background:reorderMode?subject.color:"#f5f5f4",
+              color:reorderMode?"#fff":"#57534e",border:reorderMode?"none":"1.5px solid #e7e5e4",
+              borderRadius:8,padding:"5px 14px",fontSize:"0.72rem",cursor:"pointer",fontWeight:600}}>
+            {reorderMode?"✓ Done":"⇅ Reorder"}</button>
         </div>
-        <div style={{fontSize:"0.88rem",fontWeight:700,marginBottom:6}}>{subject.name}</div>
-        <ProgBar pct={sp.pct} color={subject.color} h={6}/>
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.68rem",color:"#64748b",marginTop:4}}>
-          <span>{sp.done}/{sp.total} done</span><span>{sp.pct}% complete</span>
+
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:"0.94rem",fontWeight:700,
+          color:"#1c1917",marginBottom:8}}>{subject.name}</div>
+        <ProgBar pct={sp.pct} color={subject.color} h={5}/>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.65rem",color:"#a09890",marginTop:4}}>
+          <span>{sp.done}/{sp.total} chapters done</span>
+          <span style={{color:subject.text,fontWeight:600}}>{sp.pct}% complete</span>
         </div>
       </div>
 
-      {!reorderMode && (
-        <div style={{display:"flex",gap:7,padding:"11px 16px 4px",overflowX:"auto"}}>
-          {[["all","All"],["pending","Pending"],["inprogress","In Progress"],["done","Done"]].map(([f,l]) => (
-            <button key={f} onClick={() => setFilter(f)}
-              style={{background:filterStatus===f?subject.color:"#1e293b",color:filterStatus===f?"#fff":"#94a3b8",
-                border:filterStatus===f?"none":"1px solid #334155",borderRadius:20,padding:"4px 13px",
-                fontSize:"0.7rem",cursor:"pointer",whiteSpace:"nowrap",fontWeight:filterStatus===f?700:400}}>{l}</button>
+      {/* Filter bar */}
+      {!reorderMode&&(
+        <div style={{display:"flex",gap:6,padding:"10px 16px 6px",overflowX:"auto",
+          background:"#f7f4ef",borderBottom:"1px solid #ede9e3"}}>
+          {[["all","All"],["pending","Pending"],["inprogress","In Progress"],["done","Done"]].map(([f,l])=>(
+            <button key={f} onClick={()=>setFilter(f)}
+              style={{background:filterStatus===f?subject.color:"#fff",
+                color:filterStatus===f?"#fff":"#78716c",
+                border:filterStatus===f?"none":"1.5px solid #e7e5e4",
+                borderRadius:20,padding:"5px 14px",fontSize:"0.7rem",cursor:"pointer",
+                whiteSpace:"nowrap",fontWeight:filterStatus===f?600:400,
+                boxShadow:filterStatus===f?`0 2px 6px ${subject.color}45`:"none",
+                transition:"all 0.15s"}}>
+              {l}
+            </button>
           ))}
         </div>
       )}
 
-      {reorderMode && (
-        <div style={{background:"#1e3a5f",padding:"8px 16px",fontSize:"0.73rem",color:"#93c5fd",display:"flex",gap:6,alignItems:"center"}}>
-          ▲▼ drag order · ✕ remove · type below to add new topics
+      {reorderMode&&(
+        <div style={{background:"#fffbeb",padding:"8px 16px",fontSize:"0.71rem",
+          color:"#92400e",borderBottom:"1px solid #fde68a",fontWeight:500}}>
+          ▲▼ to reorder · ✕ to remove · type below to add new topics
         </div>
       )}
 
-      <div style={{padding:"12px 16px 40px"}}>
+      {/* Chapter list */}
+      <div style={{padding:"14px 16px 50px"}}>
         {subject.sets
-          ? subject.sets.map(set => {
-              const sKey = `${subject.id}_${set.id}`;
-              return (
-                <div key={set.id} style={{marginBottom:24}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                    <div style={{fontSize:"0.88rem",fontWeight:700,color:subject.color}}>{set.name}</div>
-                    <span style={{background:`${subject.color}18`,color:subject.color,border:`1px solid ${subject.color}40`,
-                      borderRadius:20,padding:"2px 10px",fontSize:"0.67rem",fontWeight:600}}>⏱ {set.timeWindow} window</span>
+          ?subject.sets.map(set=>{
+              const sKey=`${subject.id}_${set.id}`;
+              return(
+                <div key={set.id} style={{marginBottom:28}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                    <div style={{fontFamily:"'Playfair Display',serif",fontSize:"0.9rem",
+                      fontWeight:700,color:subject.text}}>{set.name}</div>
+                    <span style={{background:subject.light,color:subject.text,
+                      border:`1px solid ${subject.color}28`,borderRadius:20,
+                      padding:"2px 10px",fontSize:"0.63rem",fontWeight:600}}>⏱ {set.timeWindow}</span>
                   </div>
-                  {renderRows(sKey, getOrder(sKey))}
-                  {renderAddRow(sKey)}
+                  {renderRows(sKey,getOrder(sKey))}
+                  {renderAdd(sKey)}
                 </div>
               );
             })
-          : <>
-              {renderRows(subject.id, getOrder(subject.id))}
-              {renderAddRow(subject.id)}
-            </>
+          :<>{renderRows(subject.id,getOrder(subject.id))}{renderAdd(subject.id)}</>
         }
       </div>
 
-      {noteModal && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",display:"flex",
-          alignItems:"center",justifyContent:"center",padding:20,zIndex:50}}>
-          <div style={{background:"#1e293b",borderRadius:14,padding:20,width:"100%",maxWidth:400,border:"1px solid #334155"}}>
-            <div style={{fontWeight:700,marginBottom:12,fontSize:"0.9rem"}}>📝 Revision Notes</div>
-            <div style={{fontSize:"0.78rem",color:"#64748b",marginBottom:8}}>
-              {st.chapterNames[noteModal]}
-            </div>
+      {/* Note modal */}
+      {noteModal&&(
+        <div className="modal-bg">
+          <div style={{background:"#fff",borderRadius:18,padding:22,width:"100%",maxWidth:400,
+            border:"1.5px solid #ede9e3",boxShadow:"0 24px 60px rgba(0,0,0,0.12)"}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:"1rem",
+              color:"#1c1917",marginBottom:4}}>Revision Notes</div>
+            <div style={{fontSize:"0.74rem",color:"#a09890",marginBottom:14,lineHeight:1.4,
+              borderBottom:"1px solid #ede9e3",paddingBottom:11}}>{st.chapterNames[noteModal]}</div>
             <textarea value={noteText} onChange={e=>setNoteText(e.target.value)}
               placeholder="Notes, mnemonics, key points, case laws…"
-              style={{width:"100%",minHeight:130,background:"#0f172a",border:"1px solid #334155",
-                borderRadius:8,padding:10,color:"#f1f5f9",fontSize:"0.83rem",
-                resize:"vertical",boxSizing:"border-box",outline:"none"}}/>
+              style={{width:"100%",minHeight:130,background:"#faf8f5",border:"1.5px solid #ede9e3",
+                borderRadius:10,padding:11,color:"#1c1917",fontSize:"0.83rem",resize:"vertical",
+                boxSizing:"border-box",outline:"none",lineHeight:1.6}}/>
             <div style={{display:"flex",gap:8,marginTop:12}}>
-              <button onClick={() => { setTopic(noteModal,{note:noteText}); setNoteModal(null); }}
-                style={{flex:1,background:subject.color,color:"#fff",border:"none",borderRadius:8,
-                  padding:10,cursor:"pointer",fontWeight:700,fontSize:"0.85rem"}}>Save Note</button>
-              <button onClick={() => setNoteModal(null)}
-                style={{flex:1,background:"#334155",color:"#f1f5f9",border:"none",borderRadius:8,
-                  padding:10,cursor:"pointer",fontSize:"0.85rem"}}>Cancel</button>
+              <button onClick={()=>{setTopic(noteModal,{note:noteText});setNoteModal(null);}}
+                style={{flex:1,background:subject.color,color:"#fff",border:"none",borderRadius:10,
+                  padding:11,cursor:"pointer",fontWeight:700,fontSize:"0.85rem",
+                  boxShadow:`0 2px 8px ${subject.color}45`}}>Save Note</button>
+              <button onClick={()=>setNoteModal(null)}
+                style={{flex:1,background:"#f5f5f4",color:"#57534e",border:"1.5px solid #e7e5e4",
+                  borderRadius:10,padding:11,cursor:"pointer",fontSize:"0.85rem",fontWeight:500}}>Cancel</button>
             </div>
           </div>
         </div>
